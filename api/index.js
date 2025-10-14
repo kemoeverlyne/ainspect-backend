@@ -88,5 +88,28 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
+// Logout endpoint
+app.post('/api/auth/logout', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Logged out successfully'
+  });
+});
+
+// Additional endpoints that might be needed
+app.get('/api/dashboard/inspections', (req, res) => {
+  res.json({
+    inspections: [],
+    message: 'Demo dashboard data'
+  });
+});
+
+app.get('/api/reports', (req, res) => {
+  res.json({
+    reports: [],
+    message: 'Demo reports data'
+  });
+});
+
 // Export for Vercel
 export default app;
