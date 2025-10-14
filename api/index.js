@@ -42,14 +42,26 @@ app.get('/api/test', (req, res) => {
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   
-  // Simple demo authentication
-  if (email === 'demo@ainspect.com' && password === 'password123') {
+  console.log('Login attempt:', { email, password: password ? '***' : 'undefined' });
+  
+  // Accept multiple demo credentials
+  const validCredentials = [
+    { email: 'demo@ainspect.com', password: 'password123' },
+    { email: 'admin@ainspect.com', password: 'password123' },
+    { email: 'test@ainspect.com', password: 'password123' }
+  ];
+  
+  const isValid = validCredentials.some(cred => 
+    cred.email === email && cred.password === password
+  );
+  
+  if (isValid) {
     res.json({
       success: true,
       message: 'Login successful',
       user: {
         id: 'demo-user-1',
-        email: 'demo@ainspect.com',
+        email: email,
         name: 'Demo User',
         role: 'inspector'
       },
@@ -58,7 +70,8 @@ app.post('/api/auth/login', (req, res) => {
   } else {
     res.status(401).json({
       success: false,
-      message: 'Invalid credentials'
+      message: 'Invalid credentials',
+      received: { email, hasPassword: !!password }
     });
   }
 });
