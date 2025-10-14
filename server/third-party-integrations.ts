@@ -57,7 +57,7 @@ export class ThirdPartyIntegrationService {
       const external_template_aItems = response.data;
 
       // Transform external_template_a items to our schema
-      const transformedItems: InsertThirdPartyInspectionItem[] = external_template_aItems.map((item: external_template_aItem) => ({
+      const transformedItems: InsertThirdPartyInspectionItem[] = external_template_aItems.map((item: ExternalTemplateItem) => ({
         source: 'external_template_a' as const,
         sourceItemId: item.id,
         title: item.title,
@@ -124,7 +124,7 @@ export class ThirdPartyIntegrationService {
       const external_template_bItems = response.data;
 
       // Transform external_template_b items to our schema
-      const transformedItems: InsertThirdPartyInspectionItem[] = external_template_bItems.map((item: external_template_bItem) => ({
+      const transformedItems: InsertThirdPartyInspectionItem[] = external_template_bItems.map((item: LegacyTemplateItem) => ({
         source: 'external_template_b' as const,
         sourceItemId: item.itemId,
         title: item.name,
@@ -173,7 +173,7 @@ export class ThirdPartyIntegrationService {
   /**
    * Fetch items from external_template_a API
    */
-  private async fetchexternal_template_aItems(apiKey: string, baseUrl: string): Promise<AxiosResponse<external_template_aItem[]>> {
+  private async fetchexternal_template_aItems(apiKey: string, baseUrl: string): Promise<AxiosResponse<ExternalTemplateItem[]>> {
     return axios.get(`${baseUrl}/api/v1/inspection-items`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -186,7 +186,7 @@ export class ThirdPartyIntegrationService {
   /**
    * Fetch items from external_template_b API
    */
-  private async fetchexternal_template_bItems(apiKey: string, baseUrl: string, apiSecret?: string): Promise<AxiosResponse<external_template_bItem[]>> {
+  private async fetchexternal_template_bItems(apiKey: string, baseUrl: string, apiSecret?: string): Promise<AxiosResponse<LegacyTemplateItem[]>> {
     const headers: any = {
       'X-API-Key': apiKey,
       'Content-Type': 'application/json'

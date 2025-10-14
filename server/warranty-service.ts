@@ -82,7 +82,7 @@ export async function processWarrantySubmission(
     if (response.success && response.warrantyId) {
       // Update report with warranty confirmation
       await storage.updateInspectionReport(report.id, {
-        warrantyStatus: 'active',
+        warrantyStatus: 'confirmed',
         warrantyExternalId: response.warrantyId,
         warrantyNote: `Elite MGA warranty activated. ID: ${response.warrantyId}. Charge ID: ${response.chargeId || 'N/A'}`
       });

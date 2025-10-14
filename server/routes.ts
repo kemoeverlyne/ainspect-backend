@@ -34,13 +34,12 @@ import aiAssistantRouter from "./routes/aiAssistant";
 import { processWarrantySubmission, getWarrantyStatus } from "./warranty-service";
 import { registerSecureUploadRoutes } from "./secure-upload-routes";
 import { registerServiceRoutes } from "./service-routes";
-import pdfGeneratorRouter from "../routes/pdfGenerator";
 // Admin/Ops Dashboard (additive only)
 import { adminRoutes } from "./admin-routes";
 // Backup services
 import { BackupService } from './services/backup';
 import { taskScheduler } from './services/scheduler';
-import crypto from 'crypto';
+import crypto from 'crypto';                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 import sgMail from '@sendgrid/mail';
 import OpenAI from "openai";
 
@@ -2115,15 +2114,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[DASHBOARD] Fetching data for user: ${userId}`);
       
-      // Fetch ALL inspection reports from database (unified table with both standard and TREC)
+      // Skip duplicate fetch - we'll get reports below
       let dbInspections: any[] = [];
-      try {
-        dbInspections = await storage.getAllInspectionReports();
-        console.log(`[DASHBOARD] Found ${dbInspections.length} inspection reports in database`);
-      } catch (dbError: any) {
-        console.error('[DASHBOARD] Database error:', dbError);
-        dbInspections = [];
-      }
 
       // Fetch bookings from database
       let dbBookings: any[] = [];
@@ -2180,7 +2172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           clientFirstName: report.clientFirstName || 'Unknown',
           clientLastName: report.clientLastName || 'Client',
           propertyAddress: report.propertyAddress || 'N/A',
-          inspectionDate: report.createdAt,
+          inspectionDate: report.inspectionDate,
           inspectionType: report.inspectionType || 'standard',
           status: report.status || 'completed',
           createdAt: report.createdAt,
@@ -2189,7 +2181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           client_first_name: report.clientFirstName || 'Unknown',
           client_last_name: report.clientLastName || 'Client',
           property_address: report.propertyAddress || 'N/A',
-          inspection_date: report.createdAt,
+          inspection_date: report.inspectionDate,
           created_at: report.createdAt,
           updated_at: report.updatedAt,
           type: 'report'
@@ -2205,13 +2197,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Include ALL in-memory inspections (no user filtering)
       const memoryInspections = newInspections;
       
-      // Combine ALL data: inspections, bookings, reports, and memory inspections
-      const allInspections = [...dbInspections, ...dbBookings, ...dbReports, ...memoryInspections];
+      // Combine ALL data: bookings, reports, and memory inspections
+      const allInspections = [...dbBookings, ...dbReports, ...memoryInspections];
       const uniqueInspections = allInspections.filter((inspection, index, self) => 
         index === self.findIndex(i => i.id === inspection.id)
       );
       
-      console.log(`[DASHBOARD] Returning ${uniqueInspections.length} total items (${dbInspections.length} inspections, ${dbBookings.length} bookings, ${dbReports.length} reports, ${memoryInspections.length} memory)`);
+      // Sort by createdAt in descending order (most recent first)
+      const sortedInspections = uniqueInspections.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.createdAt || b.created_at || 0);
+        return dateB.getTime() - dateA.getTime(); // Descending order
+      });
+      
+      // Log first few items to verify sorting
+      console.log('[DASHBOARD] First 3 inspections (most recent first):');
+      sortedInspections.slice(0, 3).forEach((inspection, index) => {
+        console.log(`  ${index + 1}. ${inspection.id} - ${inspection.clientFirstName} ${inspection.clientLastName}`);
+        console.log(`      Created: ${inspection.createdAt || inspection.created_at}`);
+        console.log(`      Inspection Date: ${inspection.inspectionDate || inspection.inspection_date}`);
+        console.log(`      Type: ${inspection.inspectionType || 'unknown'}`);
+      });
+      
+      console.log(`[DASHBOARD] Returning ${sortedInspections.length} total items (${dbBookings.length} bookings, ${dbReports.length} reports, ${memoryInspections.length} memory)`);
 
       // Mock inspection data for testing (fallback)
       const mockInspections = [
@@ -2277,15 +2285,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       ];
 
-      console.log('[BFF] Returning', uniqueInspections.length, 'real inspections');
+      console.log('[BFF] Returning', sortedInspections.length, 'real inspections');
 
       res.set("Cache-Control", "no-store");
       res.json({ 
         ok: true, 
-        count: uniqueInspections.length, 
-        items: uniqueInspections, 
-        reports: uniqueInspections, 
-        inspections: uniqueInspections 
+        count: sortedInspections.length, 
+        items: sortedInspections, 
+        reports: sortedInspections, 
+        inspections: sortedInspections 
       });
     } catch (error) {
       console.error('[BFF] Error:', error);
@@ -2888,7 +2896,6 @@ Response format:
   registerServiceRoutes(app);
   
   // Register PDF generator routes
-  app.use('/api', pdfGeneratorRouter);
 
   const httpServer = createServer(app);
   

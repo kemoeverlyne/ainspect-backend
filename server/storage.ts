@@ -259,6 +259,14 @@ export interface IStorage {
     lastUpdated?: Date;
   }>;
   getWarrantyReports(organizationId: string, limit?: number): Promise<InspectionReport[]>;
+  
+  // Third-Party API Integrations
+  getApiIntegrationByProvider(provider: string): Promise<any | undefined>;
+  updateApiIntegration(id: string, updates: any): Promise<any>;
+  syncThirdPartyItems(source: string, items: any[]): Promise<void>;
+  getThirdPartyInspectionItemsBySource(source: string): Promise<any[]>;
+  getThirdPartyInspectionItemsByRoomType(roomType: string): Promise<any[]>;
+  createApiIntegration(integration: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -495,10 +503,6 @@ export class DatabaseStorage implements IStorage {
   async getInspectionReport(id: string): Promise<InspectionReport | undefined> {
     const [report] = await db.select().from(inspectionReports).where(eq(inspectionReports.id, id));
     return report;
-  }
-
-  async getAllInspectionReports(): Promise<InspectionReport[]> {
-    return await db.select().from(inspectionReports).orderBy(desc(inspectionReports.createdAt));
   }
 
   async getUserInspectionReports(userId: string): Promise<InspectionReport[]> {
@@ -1470,6 +1474,37 @@ export class DatabaseStorage implements IStorage {
       .where(eq(orgNotes.id, noteId))
       .returning();
     return note;
+  }
+
+  // Third-Party API Integrations (stub implementations)
+  async getApiIntegrationByProvider(provider: string): Promise<any | undefined> {
+    // TODO: Implement third-party API integration storage
+    return undefined;
+  }
+
+  async updateApiIntegration(id: string, updates: any): Promise<any> {
+    // TODO: Implement third-party API integration storage
+    return { id, ...updates };
+  }
+
+  async syncThirdPartyItems(source: string, items: any[]): Promise<void> {
+    // TODO: Implement third-party items sync
+    console.log(`Syncing ${items.length} items from ${source}`);
+  }
+
+  async getThirdPartyInspectionItemsBySource(source: string): Promise<any[]> {
+    // TODO: Implement third-party items retrieval
+    return [];
+  }
+
+  async getThirdPartyInspectionItemsByRoomType(roomType: string): Promise<any[]> {
+    // TODO: Implement third-party items retrieval by room type
+    return [];
+  }
+
+  async createApiIntegration(integration: any): Promise<any> {
+    // TODO: Implement third-party API integration creation
+    return { id: 'stub-id', ...integration };
   }
 }
 

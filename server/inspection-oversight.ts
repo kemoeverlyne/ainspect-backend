@@ -74,6 +74,31 @@ export function registerInspectionOversightRoutes(app: Express) {
       const { status, inspector, priority, sortBy = 'assignedAt', sortOrder = 'desc' } = req.query;
       const currentUser = req.user;
 
+      const conditions = [eq(inspectionReports.isArchived, false)];
+
+      // Apply role-based filtering
+      if (currentUser.role === 'inspector') {
+        conditions.push(eq(inspectionReports.inspectorId, currentUser.claims.sub));
+      } else if (currentUser.role === 'manager') {
+        conditions.push(
+          or(
+            eq(inspectionReports.managerId, currentUser.claims.sub),
+            eq(inspectionReports.inspectorId, currentUser.claims.sub)
+          )
+        );
+      }
+
+      // Apply filters
+      if (status) {
+        conditions.push(sql`${inspectionReports.status} = ${status}`);
+      }
+      if (inspector) {
+        conditions.push(eq(inspectionReports.inspectorId, inspector as string));
+      }
+      if (priority) {
+        conditions.push(sql`${inspectionReports.priority} = ${priority}`);
+      }
+
       let query = db
         .select({
           report: inspectionReports,
@@ -87,30 +112,7 @@ export function registerInspectionOversightRoutes(app: Express) {
         })
         .from(inspectionReports)
         .leftJoin(users, eq(inspectionReports.inspectorId, users.id))
-        .where(eq(inspectionReports.isArchived, false));
-
-      // Apply role-based filtering
-      if (currentUser.role === 'inspector') {
-        query = query.where(eq(inspectionReports.inspectorId, currentUser.claims.sub));
-      } else if (currentUser.role === 'manager') {
-        query = query.where(
-          or(
-            eq(inspectionReports.managerId, currentUser.claims.sub),
-            eq(inspectionReports.inspectorId, currentUser.claims.sub)
-          )
-        );
-      }
-
-      // Apply filters
-      if (status) {
-        query = query.where(eq(inspectionReports.status, status));
-      }
-      if (inspector) {
-        query = query.where(eq(inspectionReports.inspectorId, inspector));
-      }
-      if (priority) {
-        query = query.where(eq(inspectionReports.priority, priority));
-      }
+        .where(and(...conditions));
 
       // Apply sorting
       const sortColumn = inspectionReports[sortBy as keyof typeof inspectionReports];
@@ -430,19 +432,23 @@ export function registerInspectionOversightRoutes(app: Express) {
     try {
       const currentUser = req.user;
 
-      let baseQuery = db.select().from(inspectionReports);
+      const baseConditions = [];
       
       // Apply role-based filtering
       if (currentUser.role === 'inspector') {
-        baseQuery = baseQuery.where(eq(inspectionReports.inspectorId, currentUser.claims.sub));
+        baseConditions.push(eq(inspectionReports.inspectorId, currentUser.claims.sub));
       } else if (currentUser.role === 'manager') {
-        baseQuery = baseQuery.where(
+        baseConditions.push(
           or(
             eq(inspectionReports.managerId, currentUser.claims.sub),
             eq(inspectionReports.inspectorId, currentUser.claims.sub)
           )
         );
       }
+
+      const baseQuery = baseConditions.length > 0 
+        ? db.select().from(inspectionReports).where(and(...baseConditions))
+        : db.select().from(inspectionReports);
 
       const reports = await baseQuery;
 

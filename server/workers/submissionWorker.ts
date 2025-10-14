@@ -109,7 +109,7 @@ export class SubmissionWorker {
         .set({
           status: newRetryCount >= maxRetries ? 'failed' : 'queued',
           retryCount: newRetryCount,
-          errorMessage: error.message,
+          errorMessage: error instanceof Error ? error.message : String(error),
           updatedAt: new Date()
         })
         .where(eq(leadSubmissions.id, submission.id));
@@ -210,14 +210,14 @@ export class SubmissionWorker {
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
 
   private filterIssuesByCategory(issues: any[], categoryKey: string): any[] {
     // Filter issues relevant to the category
-    const categoryKeywords = {
+    const categoryKeywords: Record<string, string[]> = {
       'hvac': ['hvac', 'heating', 'cooling', 'air', 'furnace', 'ac'],
       'electrical': ['electrical', 'electric', 'wiring', 'outlet', 'panel'],
       'plumbing': ['plumbing', 'water', 'leak', 'pipe', 'faucet', 'toilet'],
@@ -231,9 +231,9 @@ export class SubmissionWorker {
     if (keywords.length === 0) return issues; // Return all if no specific filter
 
     return issues.filter(issue => 
-      keywords.some(keyword => 
+      keywords.some((keyword: string) => 
         issue.title?.toLowerCase().includes(keyword) ||
-        issue.tags?.some(tag => tag.toLowerCase().includes(keyword))
+        issue.tags?.some((tag: string) => tag.toLowerCase().includes(keyword))
       )
     );
   }

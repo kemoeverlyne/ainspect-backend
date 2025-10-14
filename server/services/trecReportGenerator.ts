@@ -36,7 +36,10 @@ export interface TRECReportData {
 }
 
 export class TRECReportGenerator {
-  private static readonly TREC_FORM_PATH = path.join(__dirname, '../../assets/trec-form-pages-1-2.pdf');
+  private static getTRECFormURL(): string {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return `${frontendUrl}/trec/trec_inspection_defalt pages.pdf`;
+  }
 
   /**
    * Generate custom cover and table of contents pages
@@ -266,14 +269,25 @@ export class TRECReportGenerator {
       console.log('[TRECReportGenerator] Generating custom pages...');
       const customPagesPdf = await this.generateCustomPages(reportData);
       
-      // Load TREC form template
-      console.log('[TRECReportGenerator] Loading TREC form template...');
+      // Load TREC form template from frontend public directory
+      console.log('[TRECReportGenerator] Loading TREC form template from frontend...');
+      const trecFormUrl = this.getTRECFormURL();
+      console.log('[TRECReportGenerator] TREC form URL:', trecFormUrl);
+      
       let trecFormPdf: Buffer;
       
       try {
-        trecFormPdf = await fs.readFile(this.TREC_FORM_PATH);
+        const response = await fetch(trecFormUrl);
+        console.log('[TRECReportGenerator] Fetch response status:', response.status);
+        console.log('[TRECReportGenerator] Fetch response headers:', Object.fromEntries(response.headers.entries()));
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch TREC form: ${response.statusText}`);
+        }
+        trecFormPdf = Buffer.from(await response.arrayBuffer());
+        console.log('[TRECReportGenerator] TREC form PDF loaded, size:', trecFormPdf.length);
       } catch (error) {
-        console.warn('[TRECReportGenerator] TREC form template not found, creating placeholder...');
+        console.warn('[TRECReportGenerator] TREC form template not found, creating placeholder...', error);
         // Create a placeholder PDF if template is not available
         trecFormPdf = await this.createPlaceholderForm();
       }

@@ -185,7 +185,7 @@ export function registerTeamRoutes(app: Express) {
         email: invitation.email,
         firstName,
         lastName,
-        role: invitation.role,
+        role: invitation.role || 'inspector',
         managerId: invitation.managerId,
         branchOfficeId: invitation.branchOfficeId,
         invitedBy: invitation.invitedBy,

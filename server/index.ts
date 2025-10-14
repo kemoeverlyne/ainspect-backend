@@ -289,12 +289,11 @@ app.use((req, res, next) => {
     // The frontend runs independently on its own server
     log("Backend server running independently - frontend should be running separately");
 
-    // ALWAYS serve the app on port 5000
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
-    const port = 5000;
-    server.listen(port, "localhost", () => {
-      log(`serving on port ${port}`);
+    // Cloud Run: listen on the provided PORT and 0.0.0.0
+    const port = Number(process.env.PORT || 8080);
+    const host = "0.0.0.0";
+    server.listen(port, host, () => {
+      log(`serving on ${host}:${port}`);
     });
   } catch (error) {
     logger.error('Server startup failed:', error);

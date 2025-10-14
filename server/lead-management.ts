@@ -27,7 +27,7 @@ class LeadDistributor {
       .from(contractors)
       .where(
         and(
-          eq(contractors.category, category),
+          sql`${contractors.category} = ${category}`,
           eq(contractors.isActive, true)
         )
       )
@@ -53,7 +53,7 @@ class LeadDistributor {
       .from(leadDistributionRules)
       .where(
         and(
-          eq(leadDistributionRules.category, category),
+          sql`${leadDistributionRules.category} = ${category}`,
           eq(leadDistributionRules.distributionMethod, 'score_based'),
           eq(leadDistributionRules.isActive, true)
         )
@@ -74,19 +74,22 @@ class LeadDistributor {
       .from(contractors)
       .where(
         and(
-          eq(contractors.category, category),
+          sql`${contractors.category} = ${category}`,
           eq(contractors.isActive, true)
         )
       );
     
     // Calculate scores for each contractor
     const scoredContractors = availableContractors.map(contractor => {
-      const conversionRate = contractor.totalLeads > 0 
-        ? (contractor.convertedLeads / contractor.totalLeads) * 100 
+      const totalLeads = contractor.totalLeads ?? 0;
+      const convertedLeads = contractor.convertedLeads ?? 0;
+      const conversionRate = totalLeads > 0 
+        ? (convertedLeads / totalLeads) * 100 
         : 0;
       
+      const rating = contractor.rating ?? 0;
       const score = 
-        (contractor.rating / 5) * weights.rating +
+        (rating / 5) * weights.rating +
         (conversionRate / 100) * weights.conversionRate +
         (contractor.isPriority ? 1 : 0) * weights.availability;
       
@@ -106,7 +109,7 @@ class LeadDistributor {
       .from(leadDistributionRules)
       .where(
         and(
-          eq(leadDistributionRules.category, category),
+          sql`${leadDistributionRules.category} = ${category}`,
           eq(leadDistributionRules.distributionMethod, 'priority_list'),
           eq(leadDistributionRules.isActive, true)
         )
@@ -153,7 +156,7 @@ export function registerLeadManagementRoutes(app: Express) {
       let query = db.select().from(contractors);
       
       const conditions = [];
-      if (category) conditions.push(eq(contractors.category, category as string));
+      if (category) conditions.push(sql`${contractors.category} = ${category}`);
       if (active !== undefined) conditions.push(eq(contractors.isActive, active === 'true'));
       
       if (conditions.length > 0) {
@@ -232,14 +235,15 @@ export function registerLeadManagementRoutes(app: Express) {
       const { id } = req.params;
       const { period } = req.query; // YYYY-MM format
       
-      let metricsQuery = db
+      const metricsConditions = [eq(contractorMetrics.contractorId, id)];
+      if (period) {
+        metricsConditions.push(sql`${contractorMetrics.period} = ${period}`);
+      }
+      
+      const metricsQuery = db
         .select()
         .from(contractorMetrics)
-        .where(eq(contractorMetrics.contractorId, id));
-      
-      if (period) {
-        metricsQuery = metricsQuery.where(eq(contractorMetrics.period, period as string));
-      }
+        .where(and(...metricsConditions));
       
       const metrics = await metricsQuery.orderBy(desc(contractorMetrics.period));
       
@@ -283,10 +287,10 @@ export function registerLeadManagementRoutes(app: Express) {
       } = req.query;
       
       const conditions = [];
-      if (status && status !== 'all') conditions.push(eq(leads.status, status as string));
-      if (category && category !== 'all') conditions.push(eq(leads.category, category as string));
+      if (status && status !== 'all') conditions.push(sql`${leads.status} = ${status}`);
+      if (category && category !== 'all') conditions.push(sql`${leads.category} = ${category}`);
       if (archived === 'true') {
-        conditions.push(eq(leads.status, 'archived'));
+        conditions.push(sql`${leads.status} = 'archived'`);
       } else {
         conditions.push(sql`${leads.status} != 'archived'`);
       }
@@ -388,13 +392,13 @@ export function registerLeadManagementRoutes(app: Express) {
         .leftJoin(contractors, eq(leads.contractorId, contractors.id));
       
       const conditions = [];
-      if (status && status !== 'all') conditions.push(eq(leads.status, status as string));
-      if (category && category !== 'all') conditions.push(eq(leads.category, category as string));
+      if (status && status !== 'all') conditions.push(sql`${leads.status} = ${status}`);
+      if (category && category !== 'all') conditions.push(sql`${leads.category} = ${category}`);
       if (contractor) conditions.push(eq(leads.contractorId, contractor as string));
       if (source) conditions.push(eq(leads.source, source as string));
       if (flagged !== undefined) conditions.push(eq(leads.isFlagged, flagged === 'true'));
       if (archived === 'true') {
-        conditions.push(eq(leads.status, 'archived'));
+        conditions.push(sql`${leads.status} = 'archived'`);
       } else {
         conditions.push(sql`${leads.status} != 'archived'`);
       }
@@ -443,9 +447,9 @@ export function registerLeadManagementRoutes(app: Express) {
         return res.status(400).json({ message: 'Category parameter is required' });
       }
       
-      const conditions = [eq(leads.category, category as string)];
+      const conditions = [sql`${leads.category} = ${category}`];
       if (archived === 'true') {
-        conditions.push(eq(leads.status, 'archived'));
+        conditions.push(sql`${leads.status} = 'archived'`);
       } else {
         conditions.push(sql`${leads.status} != 'archived'`);
       }
@@ -506,7 +510,7 @@ export function registerLeadManagementRoutes(app: Express) {
           .from(leads)
           .where(
             and(
-              eq(leads.status, 'won'),
+              sql`${leads.status} = 'won'`,
               lte(leads.createdAt, cutoffDate)
             )
           );
@@ -521,7 +525,7 @@ export function registerLeadManagementRoutes(app: Express) {
             })
             .where(
               and(
-                eq(leads.status, 'won'),
+                sql`${leads.status} = 'won'`,
                 lte(leads.createdAt, cutoffDate)
               )
             );

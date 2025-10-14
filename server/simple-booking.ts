@@ -42,7 +42,7 @@ export function setupSimpleBooking(app: express.Application) {
       console.error('[SIMPLE BOOKING] Error:', error);
       res.status(500).json({ 
         message: 'Failed to create booking',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : 'Internal server error'
       });
     }
   });
