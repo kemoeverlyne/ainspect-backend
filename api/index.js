@@ -66,6 +66,34 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
+// Signup endpoint
+app.post('/api/auth/signup', (req, res) => {
+  const { email, password, name } = req.body;
+  
+  console.log('Signup attempt:', { email, name, hasPassword: !!password });
+  
+  // Basic validation
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email and password are required'
+    });
+  }
+  
+  // For demo purposes, accept any signup
+  res.json({
+    success: true,
+    message: 'Account created successfully',
+    user: {
+      id: 'demo-user-' + Date.now(),
+      email: email,
+      name: name || email.split('@')[0] || 'New User',
+      role: 'inspector'
+    },
+    accessToken: 'demo-access-token-' + Date.now()
+  });
+});
+
 // Auth endpoints
 app.get('/api/auth/me', (req, res) => {
   res.json({
