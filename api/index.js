@@ -190,6 +190,38 @@ app.get('/api/reports/:id', (req, res) => {
   });
 });
 
+// Save report endpoint (demo implementation)
+app.post('/api/reports/save', (req, res) => {
+  const reportPayload = req.body || {};
+  const savedReportId = reportPayload.id || 'rep-' + Math.random().toString(36).slice(2, 10);
+
+  res.json({
+    success: true,
+    message: 'Report saved successfully',
+    reportId: savedReportId,
+    // Echo minimal info back for UI continuity
+    report: {
+      id: savedReportId,
+      ...reportPayload,
+    }
+  });
+});
+
+// Share report endpoint (demo implementation)
+app.post('/api/reports/:id/share', (req, res) => {
+  const { id } = req.params;
+  const { recipientEmail, message } = req.body || {};
+
+  res.json({
+    success: true,
+    message: 'Share link sent successfully',
+    reportId: id,
+    recipientEmail: recipientEmail || null,
+    note: message || null,
+    shareUrl: `https://ainspect.app/report/${id}`
+  });
+});
+
 app.get('/api/reports/portal/:id', (req, res) => {
   res.json({
     id: req.params.id,
@@ -214,6 +246,47 @@ app.get('/api/settings/company', (req, res) => {
     address: '123 Company Street',
     logoUrl: null,
     message: 'Demo company settings'
+  });
+});
+
+// Report saving endpoints
+app.post('/api/reports/save', (req, res) => {
+  const reportData = req.body;
+  console.log('Saving report:', { id: reportData.id, clientName: reportData.clientName });
+  
+  // For demo purposes, simulate successful save
+  res.json({
+    success: true,
+    message: 'Report saved successfully',
+    reportId: reportData.id || 'report-' + Date.now(),
+    savedAt: new Date().toISOString()
+  });
+});
+
+app.post('/api/reports/:id/share', (req, res) => {
+  const { id } = req.params;
+  const shareData = req.body;
+  console.log('Sharing report:', { id, shareData });
+  
+  res.json({
+    success: true,
+    message: 'Report shared successfully',
+    shareUrl: `https://ainspect-frontend-164593694555.us-central1.run.app/report/${id}`,
+    sharedAt: new Date().toISOString()
+  });
+});
+
+app.get('/api/reports/:id/trec-payload', (req, res) => {
+  const { id } = req.params;
+  res.json({
+    reportId: id,
+    trecData: {
+      inspectorName: 'Demo Inspector',
+      trecLicense: 'TREC-12345',
+      inspectionDate: new Date().toISOString(),
+      clientName: 'Demo Client',
+      propertyAddress: '123 Demo Street'
+    }
   });
 });
 
