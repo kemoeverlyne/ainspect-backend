@@ -38,29 +38,56 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Demo users for authentication
+const DEMO_USERS = [
+  {
+    id: 'user-1',
+    email: 'inspector@ainspect.com',
+    password: 'password123',
+    name: 'John Inspector',
+    role: 'inspector'
+  },
+  {
+    id: 'user-2', 
+    email: 'admin@ainspect.com',
+    password: 'admin123',
+    name: 'Admin User',
+    role: 'admin'
+  },
+  {
+    id: 'user-3',
+    email: 'demo@ainspect.com', 
+    password: 'demo123',
+    name: 'Demo User',
+    role: 'inspector'
+  }
+];
+
 // Login endpoint
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   
   console.log('Login attempt:', { email, password: password ? '***' : 'undefined' });
   
-  // Accept ANY credentials for demo purposes
-  if (email && password) {
+  // Validate credentials against demo users
+  const user = DEMO_USERS.find(u => u.email === email && u.password === password);
+  
+  if (user) {
     res.json({
       success: true,
       message: 'Login successful',
       user: {
-        id: 'demo-user-' + Date.now(),
-        email: email,
-        name: email.split('@')[0] || 'Demo User',
-        role: 'inspector'
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
       },
-      accessToken: 'demo-access-token-' + Date.now()
+      accessToken: 'access-token-' + user.id + '-' + Date.now()
     });
   } else {
-    res.status(400).json({
+    res.status(401).json({
       success: false,
-      message: 'Email and password are required',
+      message: 'Invalid email or password',
       received: { email, hasPassword: !!password }
     });
   }
