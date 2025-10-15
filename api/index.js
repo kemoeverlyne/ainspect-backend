@@ -101,5 +101,95 @@ app.get('/api/reports', (req, res) => {
   });
 });
 
+// TREC Inspection endpoints
+app.get('/api/trec/inspections', (req, res) => {
+  res.json({
+    inspections: [],
+    message: 'Demo TREC inspections'
+  });
+});
+
+app.get('/api/trec/inspections/:id', (req, res) => {
+  res.json({
+    id: req.params.id,
+    clientName: 'Demo Client',
+    propertyAddress: '123 Demo Street',
+    inspectionDate: new Date().toISOString(),
+    inspectorName: 'Demo Inspector',
+    trecLicenseNumber: 'TREC-12345',
+    status: 'completed',
+    message: 'Demo TREC inspection'
+  });
+});
+
+// Reports endpoints
+app.get('/api/reports/:id', (req, res) => {
+  res.json({
+    id: req.params.id,
+    clientName: 'Demo Client',
+    propertyAddress: '123 Demo Street',
+    inspectionDate: new Date().toISOString(),
+    inspectorName: 'Demo Inspector',
+    status: 'completed',
+    message: 'Demo inspection report'
+  });
+});
+
+app.get('/api/reports/portal/:id', (req, res) => {
+  res.json({
+    id: req.params.id,
+    portalData: {
+      clientName: 'Demo Client',
+      propertyAddress: '123 Demo Street',
+      inspectionDate: new Date().toISOString(),
+      inspectorName: 'Demo Inspector',
+      status: 'completed'
+    },
+    message: 'Demo portal data'
+  });
+});
+
+// Settings endpoints
+app.get('/api/settings/company', (req, res) => {
+  res.json({
+    companyName: 'Demo Inspection Company',
+    phone: '(555) 123-4567',
+    email: 'info@demo.com',
+    website: 'www.demo.com',
+    address: '123 Company Street',
+    logoUrl: null,
+    message: 'Demo company settings'
+  });
+});
+
+// AI endpoints
+app.post('/api/inspection/ai/ab-test-photo', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Demo AI photo analysis',
+    results: {
+      anthropic: { confidence: 0.85, responseTime: 1200 },
+      openai: { confidence: 0.82, responseTime: 1100 }
+    }
+  });
+});
+
+app.get('/api/inspection/ai/ab-test-results', (req, res) => {
+  res.json({
+    results: [],
+    message: 'Demo AI test results'
+  });
+});
+
+// Catch-all for missing endpoints
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    error: 'Endpoint not found',
+    path: req.path,
+    method: req.method,
+    message: 'This endpoint is not implemented in the demo backend'
+  });
+});
+
 // Export for Vercel
 export default app;
