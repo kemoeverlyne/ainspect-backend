@@ -92,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { TRECReportGenerator } = await import('./services/trecReportGenerator.js');
       
-      const testData = {
+      const testData: any = {
         header: {
           clientName: 'Test Client',
           propertyAddress: '123 Test St, Test City, TX 12345',
@@ -106,9 +106,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reportNo: 'TEST-001'
         },
         sections: {
-          'I': { rating: 'Satisfactory', comments: 'No issues found', photos: [] },
-          'II': { rating: 'Satisfactory', comments: 'Electrical system in good condition', photos: [] },
-          'III': { rating: 'Satisfactory', comments: 'HVAC system functioning properly', photos: [] }
+          'I': { 
+            id: 'I',
+            title: 'STRUCTURAL SYSTEMS',
+            subsections: {
+              A: { rating: 'I', comments: 'No issues found', photos: [], name: 'Foundations', fullName: 'A. Foundations' }
+            }
+          },
+          'II': { 
+            id: 'II',
+            title: 'ELECTRICAL SYSTEMS',
+            subsections: {
+              A: { rating: 'I', comments: 'Electrical system in good condition', photos: [], name: 'Service Entrance', fullName: 'A. Service Entrance' }
+            }
+          },
+          'III': { 
+            id: 'III',
+            title: 'HVAC SYSTEMS',
+            subsections: {
+              A: { rating: 'I', comments: 'HVAC system functioning properly', photos: [], name: 'Heating Equipment', fullName: 'A. Heating Equipment' }
+            }
+          }
         },
         cover: {
           reportTitle: 'TREC Property Inspection Report'
@@ -116,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         propertyPhotos: []
       };
       
-      const pdfBuffer = await TRECReportGenerator.generateTRECReport(testData);
+      const pdfBuffer = await TRECReportGenerator.generateTRECReport(testData as any);
       
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'inline; filename="test-trec-report.pdf"');
@@ -211,6 +229,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching TREC payload:', error);
       res.status(500).json({ error: 'Failed to fetch report data' });
+    }
+  });
+
+  // ============================================================================
+  // ENHANCED PDF GENERATION ROUTES (Using Puppeteer)
+  // ============================================================================
+  
+  // Generate Standard Inspection Report PDF using Puppeteer
+  app.get('/api/inspections/:id/report.pdf', authenticateToken, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { format = 'A4', quality = 'high', landscape = false } = req.query;
+      
+      console.log(`[PDF API] Generating enhanced PDF for inspection ${id}`);
+      
+      // Fetch inspection data
+      const inspection = await storage.getInspectionReportById(id);
+      
+      if (!inspection) {
+        return res.status(404).json({ message: 'Inspection not found' });
+      }
+      
+      // Transform to standard format with ALL available fields
+      const inspectionAny = inspection as any;
+      const reportDataObj = inspectionAny.reportData || {};
+      const propertyData = reportDataObj.property || {};
+      const companyDataObj = reportDataObj.companyData || {};
+      
+      const standardData = {
+        id: inspection.id,
+        clientName: `${inspection.clientFirstName || ''} ${inspection.clientLastName || ''}`.trim() || propertyData.client || 'Client Name',
+        clientEmail: inspectionAny.clientEmail || propertyData.clientEmail,
+        clientPhone: inspectionAny.clientPhone || propertyData.clientPhone,
+        propertyAddress: inspection.propertyAddress || propertyData.address || 'Property Address',
+        inspectionDate: inspection.inspectionDate || new Date(),
+        inspectorName: inspection.inspectorName || propertyData.inspector || 'Inspector Name',
+        licenseNumber: inspection.trecLicenseNumber || undefined,
+        inspectorEmail: companyDataObj.companyEmail,
+        inspectorPhone: companyDataObj.companyPhone,
+        inspectorCompany: companyDataObj.companyName,
+        realtorName: propertyData.realtorName,
+        realtorCompany: propertyData.realtorCompany,
+        realtorPhone: propertyData.realtorPhone,
+        realtorEmail: propertyData.realtorEmail,
+        companyData: companyDataObj,
+        reportData: {
+          ...reportDataObj,
+          // Map frontPhotoUrl from property to frontHomePhoto for PDF generator
+          frontHomePhoto: propertyData.frontPhotoUrl || reportDataObj.frontHomePhoto,
+          // Add aliases for frontend template compatibility
+          summary: {
+            ...(reportDataObj.summary || {}),
+            // Template expects these field names
+            overallScore: reportDataObj.summary?.complianceScore || 0,
+            totalIssues: reportDataObj.summary?.itemsFailed || 0,
+            criticalIssues: reportDataObj.summary?.majorDefects || 0,
+          }
+        },
+        status: inspection.status || 'completed'
+      };
+      
+      // Import PDF generator
+      const { PDFGenerator } = await import('./services/pdfGenerator.js');
+      
+      // Generate PDF with options
+      const pdfBuffer = await PDFGenerator.generateStandardReportPDF(standardData, {
+        format: format as 'A4' | 'Letter' | 'Legal',
+        quality: quality as 'low' | 'medium' | 'high',
+        landscape: landscape === 'true',
+        printBackground: true,
+        margin: {
+          top: '0.75in',
+          right: '0.75in',
+          bottom: '0.75in',
+          left: '0.75in'
+        }
+      });
+      
+      // Set response headers
+      const clientName = `${inspection.clientFirstName || ''} ${inspection.clientLastName || ''}`.trim() || 'client';
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="inspection-report-${clientName.replace(/\s+/g, '-')}-${new Date(inspection.inspectionDate).toISOString().split('T')[0]}.pdf"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      // Send PDF
+      res.end(pdfBuffer);
+      
+    } catch (error: any) {
+      console.error('[PDF API] Error generating enhanced PDF:', error);
+      res.status(500).json({ 
+        message: 'Failed to generate enhanced PDF',
+        error: error?.message || 'Unknown error'
+      });
+    }
+  });
+  
+  // Generate PDF from HTML content
+  app.post('/api/pdf/generate-from-html', authenticateToken, async (req: any, res) => {
+    try {
+      const { htmlContent, options = {} } = req.body;
+      
+      if (!htmlContent) {
+        return res.status(400).json({ message: 'HTML content is required' });
+      }
+      
+      console.log('[PDF API] Generating PDF from HTML content');
+      
+      // Import PDF generator
+      const { PDFGenerator } = await import('./services/pdfGenerator.js');
+      
+      // Generate PDF
+      const pdfBuffer = await PDFGenerator.generatePDFFromHTML(htmlContent, options);
+      
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename="generated-report.pdf"');
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      // Send PDF
+      res.end(pdfBuffer);
+      
+    } catch (error: any) {
+      console.error('[PDF API] Error generating PDF from HTML:', error);
+      res.status(500).json({ 
+        message: 'Failed to generate PDF from HTML',
+        error: error?.message || 'Unknown error'
+      });
+    }
+  });
+  
+  // Generate PDF from URL
+  app.post('/api/pdf/generate-from-url', authenticateToken, async (req: any, res) => {
+    try {
+      const { url, options = {} } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ message: 'URL is required' });
+      }
+      
+      console.log('[PDF API] Generating PDF from URL:', url);
+      
+      // Import PDF generator
+      const { PDFGenerator } = await import('./services/pdfGenerator.js');
+      
+      // Generate PDF
+      const pdfBuffer = await PDFGenerator.generatePDFFromURL(url, options);
+      
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename="url-report.pdf"');
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      // Send PDF
+      res.end(pdfBuffer);
+      
+    } catch (error: any) {
+      console.error('[PDF API] Error generating PDF from URL:', error);
+      res.status(500).json({ 
+        message: 'Failed to generate PDF from URL',
+        error: error?.message || 'Unknown error'
+      });
     }
   });
 
@@ -1401,15 +1580,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
 
-      console.log('[TREC CREATE] Request body:', JSON.stringify(req.body, null, 2));
+      console.log('\n========================================');
+      console.log('[TREC CREATE] NEW TREC INSPECTION CREATION REQUEST');
+      console.log('========================================');
+      console.log('[TREC CREATE] Timestamp:', new Date().toISOString());
       console.log('[TREC CREATE] Current user ID:', currentUser.id);
-
-      const trecInspection = await storage.createTRECInspection({
+      console.log('[TREC CREATE] Current user email:', currentUser.email);
+      console.log('[TREC CREATE] Current user name:', currentUser.name || 'N/A');
+      
+      console.log('\n[TREC CREATE] === INCOMING REQUEST DATA ===');
+      console.log('[TREC CREATE] Raw request body keys:', Object.keys(req.body));
+      console.log('[TREC CREATE] Full request body:', JSON.stringify(req.body, null, 2));
+      
+      console.log('\n[TREC CREATE] === REQUIRED TREC FIELDS ===');
+      console.log('[TREC CREATE] Client Name:', req.body.clientName);
+      console.log('[TREC CREATE] Property Address:', req.body.propertyAddress);
+      console.log('[TREC CREATE] Inspection Date:', req.body.inspectionDate);
+      console.log('[TREC CREATE] Inspector Name:', req.body.inspectorName);
+      console.log('[TREC CREATE] TREC License #:', req.body.trecLicenseNumber);
+      console.log('[TREC CREATE] Sponsor Name:', req.body.sponsorName || 'N/A');
+      console.log('[TREC CREATE] Sponsor TREC License #:', req.body.sponsorTrecLicenseNumber || 'N/A');
+      
+      console.log('\n[TREC CREATE] === INSPECTION TRACKING DATA ===');
+      console.log('[TREC CREATE] Status:', req.body.status);
+      console.log('[TREC CREATE] Completed Sections:', req.body.completedSections);
+      console.log('[TREC CREATE] Total Photos:', req.body.totalPhotos);
+      
+      console.log('\n[TREC CREATE] === JSONB STORED DATA ===');
+      console.log('[TREC CREATE] Company Data present:', !!req.body.companyData);
+      if (req.body.companyData) {
+        console.log('[TREC CREATE] Company Data keys:', Object.keys(req.body.companyData));
+        console.log('[TREC CREATE] Company Data:', JSON.stringify(req.body.companyData, null, 2));
+      }
+      
+      console.log('[TREC CREATE] Warranty Data present:', !!req.body.warrantyData);
+      if (req.body.warrantyData) {
+        console.log('[TREC CREATE] Warranty Data keys:', Object.keys(req.body.warrantyData));
+        console.log('[TREC CREATE] Warranty Data:', JSON.stringify(req.body.warrantyData, null, 2));
+      }
+      
+      console.log('[TREC CREATE] Inspection Data present:', !!req.body.inspectionData);
+      if (req.body.inspectionData) {
+        console.log('[TREC CREATE] Inspection Data keys:', Object.keys(req.body.inspectionData));
+        console.log('[TREC CREATE] Inspection Data sections count:', 
+          req.body.inspectionData.sections ? Object.keys(req.body.inspectionData.sections).length : 0);
+        if (req.body.inspectionData.sections) {
+          console.log('[TREC CREATE] Section names:', Object.keys(req.body.inspectionData.sections));
+        }
+      }
+      
+      const dataToSave = {
         ...req.body,
         inspectorId: currentUser.id,
-      });
+      };
+      
+      console.log('\n[TREC CREATE] === DATA BEING SENT TO DATABASE ===');
+      console.log('[TREC CREATE] Data structure keys:', Object.keys(dataToSave));
+      console.log('[TREC CREATE] Inspector ID added:', dataToSave.inspectorId);
+
+      const trecInspection = await storage.createTRECInspection(dataToSave);
+
+      console.log('\n[TREC CREATE] === DATABASE INSERTION RESULT ===');
+      console.log('[TREC CREATE] ✓ Inspection created successfully');
+      console.log('[TREC CREATE] Generated ID:', trecInspection.id);
+      console.log('[TREC CREATE] Saved to table: trec_inspections');
+      console.log('[TREC CREATE] Created at:', trecInspection.createdAt);
+      console.log('[TREC CREATE] Updated at:', trecInspection.updatedAt);
+      console.log('[TREC CREATE] Returned object keys:', Object.keys(trecInspection));
+      
+      console.log('\n[TREC CREATE] === SAVED FIELD VALUES ===');
+      console.log('[TREC CREATE] clientName:', trecInspection.clientName);
+      console.log('[TREC CREATE] propertyAddress:', trecInspection.propertyAddress);
+      console.log('[TREC CREATE] inspectorId:', trecInspection.inspectorId);
+      console.log('[TREC CREATE] status:', trecInspection.status);
+      console.log('[TREC CREATE] completedSections:', trecInspection.completedSections);
+      console.log('[TREC CREATE] totalPhotos:', trecInspection.totalPhotos);
+      console.log('[TREC CREATE] companyData saved:', !!trecInspection.companyData);
+      console.log('[TREC CREATE] warrantyData saved:', !!trecInspection.warrantyData);
+      console.log('[TREC CREATE] inspectionData saved:', !!trecInspection.inspectionData);
 
       // Create audit entry
+      console.log('\n[TREC CREATE] === CREATING AUDIT TRAIL ===');
       await storage.createTRECAuditEntry({
         inspectionId: trecInspection.id,
         userId: currentUser.id,
@@ -1418,6 +1669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip || 'unknown',
         userAgent: req.get('User-Agent') || 'unknown'
       });
+      console.log('[TREC CREATE] ✓ Audit entry created in trec_audit_trail table');
 
       // Add to in-memory store for immediate dashboard display
       const dashboardInspection = {
@@ -1441,12 +1693,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       newInspections.push(dashboardInspection);
-      console.log('[TREC] Added new inspection to dashboard store:', dashboardInspection.id);
+      console.log('\n[TREC CREATE] === DASHBOARD CACHE UPDATE ===');
+      console.log('[TREC CREATE] ✓ Added inspection to in-memory dashboard store');
+      console.log('[TREC CREATE] Dashboard inspection ID:', dashboardInspection.id);
+
+      console.log('\n[TREC CREATE] === RESPONSE ===');
+      console.log('[TREC CREATE] Sending 201 Created response');
+      console.log('[TREC CREATE] Response includes inspection ID:', trecInspection.id);
+      console.log('========================================');
+      console.log('[TREC CREATE] TREC INSPECTION CREATION COMPLETED');
+      console.log('========================================\n');
 
       res.status(201).json(trecInspection);
     } catch (error) {
-      console.error('Error creating TREC inspection:', error);
+      console.log('\n========================================');
+      console.log('[TREC CREATE] ERROR OCCURRED');
+      console.log('========================================');
+      console.error('[TREC CREATE] ✗ Failed to create TREC inspection');
+      console.error('[TREC CREATE] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('[TREC CREATE] Error message:', error instanceof Error ? error.message : error);
+      if (error instanceof Error && error.stack) {
+        console.error('[TREC CREATE] Stack trace:', error.stack);
+      }
+      console.error('[TREC CREATE] Full error object:', error);
+      console.log('========================================\n');
       res.status(500).json({ message: 'Failed to create TREC inspection' });
+    }
+  });
+
+  // TEMPORARY: Development-only POST endpoint without authentication
+  app.post('/api/trec/inspections/dev-create', async (req: Request, res) => {
+    try {
+      console.log('\n========================================');
+      console.log('[TREC DEV CREATE] DEVELOPMENT-ONLY ENDPOINT (NO AUTH)');
+      console.log('========================================');
+      console.log('[TREC DEV CREATE] WARNING: This endpoint bypasses authentication!');
+      console.log('[TREC DEV CREATE] For testing purposes only!');
+      
+      // Find any existing user to use as the inspector
+      const users = await storage.getAllUsers();
+      console.log('[TREC DEV CREATE] Found', users.length, 'users in database');
+      
+      if (users.length === 0) {
+        console.error('[TREC DEV CREATE] ❌ No users found in database!');
+        return res.status(500).json({ 
+          message: 'No users found in database. Please create a user first.' 
+        });
+      }
+      
+      const defaultUser = users[0];
+      console.log('[TREC DEV CREATE] Using user:', { id: defaultUser.id, email: defaultUser.email, name: defaultUser.name });
+      
+      const dataToSave = {
+        ...req.body,
+        inspectorId: defaultUser.id,
+      };
+      
+      console.log('[TREC DEV CREATE] Data keys:', Object.keys(dataToSave));
+      console.log('[TREC DEV CREATE] Sections structure:', Object.keys(dataToSave.inspectionData?.sections || {}));
+      
+      const trecInspection = await storage.createTRECInspection(dataToSave);
+      
+      console.log('[TREC DEV CREATE] ✅ Inspection created successfully');
+      console.log('[TREC DEV CREATE] Inspection ID:', trecInspection.id);
+      console.log('========================================\n');
+      
+      res.status(201).json(trecInspection);
+    } catch (error) {
+      console.error('[TREC DEV CREATE] ❌ Error creating inspection:', error);
+      res.status(500).json({ message: 'Failed to create TREC inspection', error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -1459,10 +1774,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       console.log(`[TREC INSPECTION GET] Requesting TREC inspection ${id}`);
       
-      const inspection = await storage.getTRECInspection(id);
+      let inspection = await storage.getTRECInspection(id);
+      
+      // If not found in trec_inspections table, check the old inspection_reports table
+      if (!inspection) {
+        console.log(`[TREC INSPECTION GET] Not found in trec_inspections table, checking inspection_reports table...`);
+        const oldReport = await storage.getInspectionReport(id);
+        
+        if (oldReport && oldReport.inspectionType === 'trec') {
+          console.log(`[TREC INSPECTION GET] Found TREC inspection in inspection_reports table`);
+          console.log(`[TREC INSPECTION GET] Old report keys:`, Object.keys(oldReport));
+          console.log(`[TREC INSPECTION GET] reportData exists:`, !!oldReport.reportData);
+          console.log(`[TREC INSPECTION GET] reportData type:`, typeof oldReport.reportData);
+          
+          // The old format stores TREC data in the reportData field
+          const reportData: any = oldReport.reportData || {};
+          console.log(`[TREC INSPECTION GET] reportData keys:`, Object.keys(reportData));
+          
+          // Transform the old format to the new format
+          const transformedInspection: any = {
+            id: oldReport.id,
+            clientName: (oldReport as any).clientName || reportData.clientName || `${oldReport.clientFirstName} ${oldReport.clientLastName}`,
+            inspectionDate: reportData.inspectionDate || oldReport.createdAt || new Date(),
+            propertyAddress: oldReport.propertyAddress || reportData.propertyAddress || '',
+            inspectorName: reportData.inspectorName || '',
+            trecLicenseNumber: oldReport.trecLicenseNumber || reportData.trecLicenseNumber || '',
+            sponsorName: oldReport.sponsorName || reportData.sponsorName || '',
+            sponsorTrecLicenseNumber: oldReport.sponsorTrecLicenseNumber || reportData.sponsorTrecLicenseNumber || '',
+            inspectorId: oldReport.inspectorId,
+            status: oldReport.status || 'draft',
+            completedSections: reportData.completedSections || [],
+            companyData: reportData.companyData || {},
+            warrantyData: reportData.warrantyData || {},
+            inspectionData: reportData.inspectionData || {},
+            createdAt: oldReport.createdAt || new Date(),
+            updatedAt: oldReport.updatedAt || new Date(),
+          };
+          
+          inspection = transformedInspection;
+          
+          console.log(`[TREC INSPECTION GET] Transformed inspection data:`, {
+            id: inspection?.id,
+            clientName: inspection?.clientName,
+            hasCompanyData: !!(inspection?.companyData && Object.keys(inspection.companyData).length > 0),
+            hasWarrantyData: !!(inspection?.warrantyData && Object.keys(inspection.warrantyData).length > 0),
+            hasInspectionData: !!(inspection?.inspectionData && Object.keys(inspection.inspectionData).length > 0),
+          });
+        }
+      }
       
       if (!inspection) {
-        console.log(`[TREC INSPECTION GET] TREC inspection ${id} not found`);
+        console.log(`[TREC INSPECTION GET] TREC inspection ${id} not found in either table`);
         return res.status(404).json({ message: 'TREC inspection not found' });
       }
 
@@ -1976,7 +2338,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = user.id;
       
       console.log(`[DASHBOARD] User object:`, { id: user?.id, email: user?.email, role: user?.role });
-      
       console.log(`[DASHBOARD] Returning data for user: ${userId}`);
       
       // Fetch inspection reports for the authenticated inspector only (unified table)
@@ -2007,6 +2368,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .limit(100);
         });
         
+        console.log(`[DASHBOARD] Raw bookings from DB:`, bookings.length, bookings.map(b => ({ 
+          id: b.id, 
+          inspectorId: b.inspectorId, 
+          clientName: b.clientName,
+          status: b.status 
+        })));
+        
         dbBookings = bookings;
         console.log(`[DASHBOARD] Found ${dbBookings.length} bookings for user ${userId}`);
         
@@ -2014,15 +2382,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const transformedBookings = dbBookings.map(booking => ({
           id: booking.id,
           inspectorId: booking.inspectorId,
+          userId: booking.inspectorId, // Add userId field for frontend compatibility
           clientName: booking.clientName,
+          clientFirstName: booking.clientName?.split(' ')[0] || 'Unknown',
+          clientLastName: booking.clientName?.split(' ').slice(1).join(' ') || 'Client',
           clientEmail: booking.clientEmail,
           clientPhone: booking.clientPhone,
           propertyAddress: booking.propertyAddress,
-          inspectionDate: booking.inspectionDate,
+          inspectionDate: new Date(`${booking.bookingDate}T${booking.bookingTime}:00`).toISOString(),
           status: booking.status || 'scheduled',
-          createdAt: booking.createdAt,
-          updatedAt: booking.updatedAt,
-          type: 'booking'
+          createdAt: booking.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: booking.updatedAt?.toISOString() || new Date().toISOString(),
+          type: 'booking',
+          // Legacy snake_case fields for compatibility
+          client_first_name: booking.clientName?.split(' ')[0] || 'Unknown',
+          client_last_name: booking.clientName?.split(' ').slice(1).join(' ') || 'Client',
+          property_address: booking.propertyAddress,
+          inspection_date: new Date(`${booking.bookingDate}T${booking.bookingTime}:00`).toISOString(),
+          created_at: booking.createdAt?.toISOString() || new Date().toISOString(),
+          updated_at: booking.updatedAt?.toISOString() || new Date().toISOString(),
         }));
         
         console.log(`[DASHBOARD] Transformed ${transformedBookings.length} bookings`);
@@ -2042,7 +2420,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const transformedReports = dbReports.map(report => ({
           id: report.id,
           inspectorId: report.inspectorId,
+          userId: report.inspectorId, // Add userId field for frontend compatibility
           clientName: (report.clientFirstName || '') + ' ' + (report.clientLastName || ''),
+          clientFirstName: report.clientFirstName || 'Unknown',
+          clientLastName: report.clientLastName || 'Client',
           clientEmail: report.clientEmail || 'N/A',
           clientPhone: report.clientPhone || 'N/A',
           propertyAddress: report.propertyAddress || 'N/A',
@@ -2051,7 +2432,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: report.status || 'completed',
           createdAt: report.createdAt,
           updatedAt: report.updatedAt,
-          type: 'report'
+          type: 'report',
+          // Legacy snake_case fields for compatibility
+          client_first_name: report.clientFirstName || 'Unknown',
+          client_last_name: report.clientLastName || 'Client',
+          property_address: report.propertyAddress || 'N/A',
+          inspection_date: report.createdAt,
+          created_at: report.createdAt,
+          updated_at: report.updatedAt,
         }));
         
         console.log(`[DASHBOARD] Transformed ${transformedReports.length} reports`);
@@ -2078,7 +2466,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: uniqueInspections[0].id,
           clientName: uniqueInspections[0].clientName || uniqueInspections[0].clientFirstName,
           inspectionType: uniqueInspections[0].inspectionType,
-          inspectorName: uniqueInspections[0].inspectorName
+          inspectorName: uniqueInspections[0].inspectorName,
+          userId: uniqueInspections[0].userId,
+          inspectorId: uniqueInspections[0].inspectorId
         });
       }
 
@@ -2087,11 +2477,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         count: uniqueInspections.length, 
         items: uniqueInspections, 
         reports: uniqueInspections, 
-        inspections: uniqueInspections 
+        inspections: uniqueInspections,
+        debug: {
+          userId,
+          userEmail: user.email,
+          totalBookings: dbBookings.length,
+          totalReports: dbReports.length,
+          totalInspections: dbInspections.length,
+          totalMemory: memoryInspections.length
+        }
       });
     } catch (error) {
       console.error('[DASHBOARD] Error:', error);
       res.status(500).json({ message: 'Failed to fetch data' });
+    }
+  });
+
+  // DEBUG: Simple test endpoint to check authentication and data
+  app.get('/api/debug/test-auth', authenticateToken, async (req: any, res) => {
+    try {
+      const user = req.user as User;
+      console.log('[TEST-AUTH] User:', user);
+      
+      if (!user) {
+        return res.status(401).json({ message: 'No user found' });
+      }
+      
+      // Test database connection
+      const { withDb } = await import('./db');
+      const { inspectorBookings, users } = await import('../shared/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      // Get user from database
+      const dbUser = await withDb(async (db) => {
+        return await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+      });
+      
+      // Get bookings for this user
+      const userBookings = await withDb(async (db) => {
+        return await db.select().from(inspectorBookings).where(eq(inspectorBookings.inspectorId, user.id)).limit(5);
+      });
+      
+      res.json({
+        success: true,
+        authUser: {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        },
+        dbUser: dbUser[0] || null,
+        bookingsCount: userBookings.length,
+        sampleBookings: userBookings.map(b => ({
+          id: b.id,
+          inspectorId: b.inspectorId,
+          clientName: b.clientName,
+          status: b.status
+        }))
+      });
+    } catch (error: any) {
+      console.error('[TEST-AUTH] Error:', error);
+      res.status(500).json({ error: error?.message || 'Unknown error' });
     }
   });
 
@@ -2331,7 +2776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('[DEBUG REPORT] Error:', error);
       res.status(500).json({ 
         ok: false, 
-        error: error.message 
+        error: error instanceof Error ? error.message : 'Unknown error' 
       });
     }
   });
@@ -2353,7 +2798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       res.status(500).json({ 
         ok: false, 
-        error: error.message 
+        error: error instanceof Error ? error.message : 'Unknown error' 
       });
     }
   });

@@ -79,6 +79,7 @@
     "stripe": "^18.4.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "tough-cookie": "^6.0.0",
     "uuid": "^11.1.0",
     "winston": "^3.17.0",
     "ws": "^8.18.0",

@@ -36,18 +36,50 @@ export const generateTRECReportPDF = async (req: Request, res: Response) => {
       };
     }
 
+    // Handle both old and new data formats
+    // Old format: inspection.reportData.{companyData, warrantyData, inspectionData}
+    // New format: inspection.{companyData, warrantyData, inspectionData}
+    const companyData = inspection.companyData || (inspection as any).reportData?.companyData || {};
+    const inspectionData = inspection.inspectionData || (inspection as any).reportData?.inspectionData || {};
+    
+    console.log('\n[TREC PDF API] === DATA FORMAT DETECTION ===');
+    console.log('[TREC PDF API] Has inspection.companyData:', !!inspection.companyData);
+    console.log('[TREC PDF API] Has inspection.reportData:', !!(inspection as any).reportData);
+    console.log('[TREC PDF API] Using companyData from:', inspection.companyData ? 'NEW format' : 'OLD format (reportData)');
+    console.log('[TREC PDF API] Using inspectionData from:', inspection.inspectionData ? 'NEW format' : 'OLD format (reportData)');
+
     // Transform inspection data to report format
-    console.log('[TREC Report API] Transforming inspection data:', {
+    console.log('\n[TREC PDF API] Transforming inspection data:', {
       id: inspection.id,
       clientName: inspection.clientName,
       propertyAddress: inspection.propertyAddress,
       inspectionDate: inspection.inspectionDate,
       inspectorName: inspection.inspectorName,
       trecLicenseNumber: inspection.trecLicenseNumber,
-      hasCompanyData: !!inspection.companyData,
-      hasInspectionData: !!inspection.inspectionData,
-      sectionsCount: Object.keys(inspection.inspectionData?.sections || {}).length
+      hasCompanyData: !!companyData && Object.keys(companyData).length > 0,
+      hasInspectionData: !!inspectionData && Object.keys(inspectionData).length > 0,
+      sectionsCount: Object.keys(inspectionData?.sections || {}).length
     });
+
+    // Log detailed section structure
+    console.log('\n[TREC PDF API] === INSPECTION DATA RECEIVED FROM STORAGE ===');
+    if (inspectionData?.sections) {
+      const sections = inspectionData.sections;
+      console.log('[TREC PDF API] Sections object type:', typeof sections);
+      console.log('[TREC PDF API] Sections is array?:', Array.isArray(sections));
+      console.log('[TREC PDF API] Section keys:', Object.keys(sections));
+      console.log('[TREC PDF API] Total section items:', Object.keys(sections).length);
+      
+      // Log each section item in detail
+      Object.entries(sections).forEach(([sectionKey, sectionData]) => {
+        console.log(`\n[TREC PDF API] === Section Item: "${sectionKey}" ===`);
+        console.log('[TREC PDF API] Full data:', JSON.stringify(sectionData, null, 2));
+      });
+    } else {
+      console.log('[TREC PDF API] ❌ NO SECTIONS DATA FOUND!');
+      console.log('[TREC PDF API] inspectionData:', inspectionData);
+      console.log('[TREC PDF API] Full inspection object keys:', Object.keys(inspection));
+    }
 
     const reportData: TRECReportData = {
       header: {
@@ -56,18 +88,22 @@ export const generateTRECReportPDF = async (req: Request, res: Response) => {
         inspectionDate: inspection.inspectionDate.toISOString(),
         inspectorName: inspection.inspectorName,
         licenseNo: inspection.trecLicenseNumber,
-        companyName: inspection.companyData?.companyName || 'Inspection Company',
-        companyPhone: inspection.companyData?.companyPhone || '',
-        companyEmail: inspection.companyData?.companyEmail || '',
-        companyAddress: inspection.companyData?.companyAddress || '',
-        reportNo: inspection.id
+        companyName: companyData?.companyName || 'Inspection Company',
+        companyPhone: companyData?.companyPhone || '',
+        companyEmail: companyData?.companyEmail || '',
+        companyAddress: companyData?.companyAddress || '',
+        companyWebsite: companyData?.companyWebsite || '',
+        reportNo: inspection.id,
+        sponsorName: inspection.sponsorName,
+        sponsorLicenseNo: inspection.sponsorTrecLicenseNumber
       },
-      sections: inspection.inspectionData?.sections || {},
+      sections: inspectionData?.sections || {},
       cover: {
         reportTitle: 'TREC Property Inspection Report',
-        propertyFrontPhoto: inspection.inspectionData?.coverPageData?.propertyFrontPhoto
+        propertyFrontPhoto: inspectionData?.coverPageData?.propertyFrontPhoto
       },
-      propertyPhotos: Object.values(inspection.inspectionData?.sections || {}).flatMap((section: any) => section.photos || [])
+      propertyPhotos: Object.values(inspectionData?.sections || {}).flatMap((section: any) => section.photos || []),
+      propertyInfo: inspectionData?.propertyInfo || {}
     };
 
     console.log('[TREC Report API] Report data prepared:', {

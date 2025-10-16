@@ -200,7 +200,9 @@ const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     '/ai-assistant/chat',
     // A/B Testing endpoints (bypasses CSRF for development)
     '/inspection/ai/ab-test-photo',
-    '/inspection/ai/ab-test-results'
+    '/inspection/ai/ab-test-results',
+    // TREC Development endpoint (bypasses CSRF for testing)
+    '/trec/inspections/dev-create'
   ];
   
   // Debug logging

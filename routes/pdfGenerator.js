@@ -38,12 +38,12 @@ router.post('/generate-pdf', async (req, res) => {
     
     // Set content with proper HTML structure
     await page.setContent(htmlContent, {
-      waitUntil: 'networkidle0',
-      timeout: 30000
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
     });
     
     // Wait for any images to load
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Generate PDF with proper formatting
     const pdfBuffer = await page.pdf({
@@ -122,11 +122,12 @@ router.post('/generate-pdf-playwright', async (req, res) => {
     
     // Set content
     await page.setContent(htmlContent, {
-      waitUntil: 'networkidle'
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
     });
     
     // Wait for content to load
-    await page.waitForTimeout(2000);
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Generate PDF
     const pdfBuffer = await page.pdf({

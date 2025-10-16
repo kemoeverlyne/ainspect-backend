@@ -690,25 +690,188 @@ export class DatabaseStorage implements IStorage {
   // ============================================================================
 
   async createTRECInspection(inspection: InsertTRECInspection): Promise<TRECInspection> {
-    console.log('[STORAGE] Creating TREC inspection with data:', JSON.stringify(inspection, null, 2));
+    console.log('\n[STORAGE] ========================================');
+    console.log('[STORAGE] DATABASE INSERT OPERATION - TREC INSPECTION');
+    console.log('[STORAGE] ========================================');
+    console.log('[STORAGE] Target table: trec_inspections');
+    console.log('[STORAGE] Operation: INSERT with RETURNING *');
+    
+    console.log('\n[STORAGE] === INPUT DATA STRUCTURE ===');
+    console.log('[STORAGE] Input keys:', Object.keys(inspection));
+    console.log('[STORAGE] Full input data:', JSON.stringify(inspection, null, 2));
+    
+    // Convert ISO string to Date object if needed (frontend sends ISO strings)
+    const dataToInsert = {
+      ...inspection,
+      inspectionDate: typeof inspection.inspectionDate === 'string' 
+        ? new Date(inspection.inspectionDate) 
+        : inspection.inspectionDate,
+    };
+    
+    console.log('\n[STORAGE] === DATA TRANSFORMATION ===');
+    console.log('[STORAGE] inspectionDate converted:', typeof inspection.inspectionDate, '→', typeof dataToInsert.inspectionDate);
+    console.log('[STORAGE] Original value:', inspection.inspectionDate);
+    console.log('[STORAGE] Converted value:', dataToInsert.inspectionDate);
+    
+    console.log('\n[STORAGE] === FIELD-BY-FIELD BREAKDOWN ===');
+    console.log('[STORAGE] VARCHAR fields:');
+    console.log('[STORAGE]   - clientName (client_name):', inspection.clientName);
+    console.log('[STORAGE]   - inspectorName (inspector_name):', inspection.inspectorName);
+    console.log('[STORAGE]   - trecLicenseNumber (trec_license_number):', inspection.trecLicenseNumber);
+    console.log('[STORAGE]   - sponsorName (sponsor_name):', inspection.sponsorName || 'NULL');
+    console.log('[STORAGE]   - sponsorTrecLicenseNumber (sponsor_trec_license_number):', inspection.sponsorTrecLicenseNumber || 'NULL');
+    console.log('[STORAGE]   - inspectorId (inspector_id):', inspection.inspectorId);
+    console.log('[STORAGE]   - status:', inspection.status || 'draft (default)');
+    
+    console.log('\n[STORAGE] TEXT fields:');
+    console.log('[STORAGE]   - propertyAddress (property_address):', inspection.propertyAddress);
+    
+    console.log('\n[STORAGE] TIMESTAMP fields:');
+    console.log('[STORAGE]   - inspectionDate (inspection_date):', dataToInsert.inspectionDate);
+    
+    console.log('\n[STORAGE] INTEGER fields:');
+    console.log('[STORAGE]   - totalPhotos (total_photos):', inspection.totalPhotos || 0);
+    
+    console.log('\n[STORAGE] JSONB fields (structured data):');
+    console.log('[STORAGE]   - completedSections (completed_sections):');
+    if (inspection.completedSections) {
+      console.log('[STORAGE]     Type: string[]');
+      console.log('[STORAGE]     Length:', inspection.completedSections.length);
+      console.log('[STORAGE]     Values:', inspection.completedSections);
+    } else {
+      console.log('[STORAGE]     NULL');
+    }
+    
+    console.log('[STORAGE]   - companyData (company_data):');
+    if (inspection.companyData) {
+      console.log('[STORAGE]     Type: object');
+      console.log('[STORAGE]     Keys:', Object.keys(inspection.companyData));
+      console.log('[STORAGE]     Value:', JSON.stringify(inspection.companyData, null, 2));
+    } else {
+      console.log('[STORAGE]     NULL');
+    }
+    
+    console.log('[STORAGE]   - warrantyData (warranty_data):');
+    if (inspection.warrantyData) {
+      console.log('[STORAGE]     Type: object');
+      console.log('[STORAGE]     Keys:', Object.keys(inspection.warrantyData));
+      console.log('[STORAGE]     Value:', JSON.stringify(inspection.warrantyData, null, 2));
+    } else {
+      console.log('[STORAGE]     NULL');
+    }
+    
+    console.log('[STORAGE]   - inspectionData (inspection_data):');
+    if (inspection.inspectionData) {
+      console.log('[STORAGE]     Type: object');
+      console.log('[STORAGE]     Keys:', Object.keys(inspection.inspectionData));
+      if (inspection.inspectionData.sections) {
+        console.log('[STORAGE]     Sections count:', Object.keys(inspection.inspectionData.sections).length);
+        console.log('[STORAGE]     Section names:', Object.keys(inspection.inspectionData.sections));
+        console.log('[STORAGE]     Total section data size:', JSON.stringify(inspection.inspectionData).length, 'bytes');
+      }
+      // Don't log full inspectionData as it can be very large
+      console.log('[STORAGE]     (Full inspection data logged to detail level)');
+    } else {
+      console.log('[STORAGE]     NULL');
+    }
+    
     try {
-      const [trecInspection] = await db.insert(trecInspections).values(inspection).returning();
-      console.log('[STORAGE] TREC inspection created successfully:', trecInspection.id);
+      console.log('\n[STORAGE] === EXECUTING DATABASE INSERT ===');
+      console.log('[STORAGE] Executing: INSERT INTO trec_inspections (columns) VALUES (data) RETURNING *');
+      
+      const [trecInspection] = await db.insert(trecInspections).values(dataToInsert).returning();
+      
+      console.log('\n[STORAGE] === DATABASE INSERT SUCCESSFUL ===');
+      console.log('[STORAGE] ✓ Row inserted successfully');
+      console.log('[STORAGE] Generated UUID:', trecInspection.id);
+      console.log('[STORAGE] Auto-generated fields:');
+      console.log('[STORAGE]   - id:', trecInspection.id);
+      console.log('[STORAGE]   - created_at:', trecInspection.createdAt);
+      console.log('[STORAGE]   - updated_at:', trecInspection.updatedAt);
+      console.log('[STORAGE]   - completed_at:', trecInspection.completedAt || 'NULL');
+      
+      console.log('\n[STORAGE] === RETURNED DATA VERIFICATION ===');
+      console.log('[STORAGE] Returned object has', Object.keys(trecInspection).length, 'fields');
+      console.log('[STORAGE] Field names:', Object.keys(trecInspection));
+      console.log('[STORAGE] Data matches input:', 
+        trecInspection.clientName === inspection.clientName ? '✓' : '✗');
+      console.log('[STORAGE] Inspector ID preserved:', 
+        trecInspection.inspectorId === inspection.inspectorId ? '✓' : '✗');
+      console.log('[STORAGE] JSONB data preserved:',
+        (!!trecInspection.companyData === !!inspection.companyData &&
+         !!trecInspection.warrantyData === !!inspection.warrantyData &&
+         !!trecInspection.inspectionData === !!inspection.inspectionData) ? '✓' : '✗');
+      
+      console.log('[STORAGE] ========================================');
+      console.log('[STORAGE] DATABASE INSERT COMPLETED');
+      console.log('[STORAGE] ========================================\n');
+      
       return trecInspection;
     } catch (error) {
-      console.error('[STORAGE] Error creating TREC inspection:', error);
+      console.log('\n[STORAGE] === DATABASE INSERT FAILED ===');
+      console.error('[STORAGE] ✗ Error creating TREC inspection');
+      console.error('[STORAGE] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('[STORAGE] Error message:', error instanceof Error ? error.message : error);
+      console.error('[STORAGE] Full error:', error);
+      console.log('[STORAGE] ========================================\n');
       throw error;
     }
   }
 
   async getTRECInspection(id: string): Promise<TRECInspection | undefined> {
+    console.log('\n[STORAGE GET] ========================================');
+    console.log('[STORAGE GET] FETCHING TREC INSPECTION FROM DATABASE');
+    console.log('[STORAGE GET] ========================================');
+    console.log('[STORAGE GET] Inspection ID:', id);
+    
     try {
       // Try to select all columns first
       const [inspection] = await db.select().from(trecInspections).where(eq(trecInspections.id, id));
+      
+      if (inspection) {
+        console.log('\n[STORAGE GET] === RETRIEVED DATA STRUCTURE ===');
+        console.log('[STORAGE GET] Top-level keys:', Object.keys(inspection));
+        console.log('[STORAGE GET] Has inspectionData:', !!inspection.inspectionData);
+        
+        if (inspection.inspectionData) {
+          console.log('[STORAGE GET] inspectionData keys:', Object.keys(inspection.inspectionData as any));
+          
+          if ((inspection.inspectionData as any).sections) {
+            const sections = (inspection.inspectionData as any).sections;
+            console.log('[STORAGE GET] === SECTIONS DATA STRUCTURE ===');
+            console.log('[STORAGE GET] Section keys:', Object.keys(sections));
+            console.log('[STORAGE GET] Total section items:', Object.keys(sections).length);
+            
+            // Log first 3 section items in detail
+            Object.entries(sections).slice(0, 3).forEach(([key, value]) => {
+              console.log(`[STORAGE GET] Section item "${key}":`, JSON.stringify(value, null, 2));
+            });
+            
+            // Log summary of all items
+            const sectionSummary: any = {};
+            Object.entries(sections).forEach(([key, value]: [string, any]) => {
+              sectionSummary[key] = {
+                hasRating: !!value?.rating,
+                rating: value?.rating,
+                hasComments: !!(value?.comments || value?.comment || value?.notes),
+                hasPhotos: !!(value?.photos && value.photos.length > 0),
+                photoCount: value?.photos?.length || 0
+              };
+            });
+            console.log('[STORAGE GET] === ALL SECTIONS SUMMARY ===');
+            console.log(JSON.stringify(sectionSummary, null, 2));
+          }
+        }
+        
+        console.log('[STORAGE GET] ✅ Inspection found and logged');
+      } else {
+        console.log('[STORAGE GET] ❌ No inspection found with ID:', id);
+      }
+      
       return inspection;
     } catch (error) {
       // If there's a column error, try with only existing columns
-      console.warn('Column error in getTRECInspection, trying with existing columns:', error);
+      console.warn('[STORAGE GET] Column error in getTRECInspection, trying with existing columns:', error);
       try {
         const [inspection] = await db.select({
           id: trecInspections.id,
@@ -727,6 +890,8 @@ export class DatabaseStorage implements IStorage {
           updatedAt: trecInspections.updatedAt,
           completedAt: trecInspections.completedAt
         }).from(trecInspections).where(eq(trecInspections.id, id));
+        
+        console.log('[STORAGE GET] Using fallback column selection');
         
         // Add null values for missing columns
         return inspection ? {
