@@ -291,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Import PDF generator dynamically
-      const { PDFGenerator } = await import('./services/pdfGenerator.js');
+      const { PDFGenerator } = await import('./services/pdfGenerator');
       
       // Generate PDF with options
       const pdfBuffer = await PDFGenerator.generateStandardReportPDF(standardData, {
@@ -337,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[PDF API] Generating PDF from HTML content');
       
       // Import PDF generator dynamically
-      const { PDFGenerator } = await import('./services/pdfGenerator.js');
+      const { PDFGenerator } = await import('./services/pdfGenerator');
       
       // Generate PDF
       const pdfBuffer = await PDFGenerator.generatePDFFromHTML(htmlContent, options);
@@ -371,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[PDF API] Generating PDF from URL:', url);
       
       // Import PDF generator dynamically
-      const { PDFGenerator } = await import('./services/pdfGenerator.js');
+      const { PDFGenerator } = await import('./services/pdfGenerator');
       
       // Generate PDF
       const pdfBuffer = await PDFGenerator.generatePDFFromURL(url, options);
