@@ -10,7 +10,7 @@ export class PlaywrightInstaller {
       
       // First, try to install with system dependencies
       console.log('[PLAYWRIGHT INSTALLER] Installing with system dependencies...');
-      const { stdout, stderr } = await execAsync('npx playwright install chromium chromium-headless-shell --with-deps', {
+      const { stdout, stderr } = await execAsync('npx playwright install chromium-headless-shell@1194 --with-deps', {
         timeout: 300000, // 5 minutes timeout
         maxBuffer: 1024 * 1024 * 10 // 10MB buffer
       });
@@ -31,7 +31,7 @@ export class PlaywrightInstaller {
       } else {
         // Try alternative installation method
         console.log('[PLAYWRIGHT INSTALLER] Trying alternative installation method...');
-        const { stdout: altStdout, stderr: altStderr } = await execAsync('npx playwright install chromium chromium-headless-shell', {
+        const { stdout: altStdout, stderr: altStderr } = await execAsync('npx playwright install chromium-headless-shell@1194', {
           timeout: 300000,
           maxBuffer: 1024 * 1024 * 10
         });
@@ -75,11 +75,15 @@ export class PlaywrightInstaller {
       const { stdout: headlessCheck } = await execAsync('find /opt -name "*headless_shell*" 2>/dev/null | head -3 || echo "not found"');
       console.log('[PLAYWRIGHT INSTALLER] Headless shell check:', headlessCheck);
       
-      const isInstalled = chromiumCheck.includes('chromium') || altCheck.includes('chromium') || headlessCheck.includes('headless_shell');
+      // Check for the specific version path that the PDF generator expects
+      const { stdout: specificPathCheck } = await execAsync('ls -la /opt/render/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell 2>/dev/null || echo "not found"');
+      console.log('[PLAYWRIGHT INSTALLER] Specific path check:', specificPathCheck);
+      
+      const isInstalled = chromiumCheck.includes('chromium') || altCheck.includes('chromium') || headlessCheck.includes('headless_shell') || specificPathCheck.includes('headless_shell');
       
       return {
         installed: isInstalled,
-        message: `Playwright version: ${stdout.trim()}, Chromium cache: ${chromiumCheck.includes('chromium') ? 'found' : 'not found'}, Alternative: ${altCheck.includes('chromium') ? 'found' : 'not found'}, Headless shell: ${headlessCheck.includes('headless_shell') ? 'found' : 'not found'}`
+        message: `Playwright version: ${stdout.trim()}, Chromium cache: ${chromiumCheck.includes('chromium') ? 'found' : 'not found'}, Alternative: ${altCheck.includes('chromium') ? 'found' : 'not found'}, Headless shell: ${headlessCheck.includes('headless_shell') ? 'found' : 'not found'}, Specific path: ${specificPathCheck.includes('headless_shell') ? 'found' : 'not found'}`
       };
     } catch (error) {
       console.error('[PLAYWRIGHT INSTALLER] Check failed:', error);
