@@ -12,7 +12,7 @@ import {
   insertUserOnboardingProgressSchema,
   type User
 } from "@shared/schema";
-import { authenticateToken } from "./auth";
+import { authenticateToken, getUserByEmail } from "./auth";
 import multer from "multer";
 import path from "path";
 
