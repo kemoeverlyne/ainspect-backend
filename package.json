@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx server/index.ts",
-    "build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && npm run copy-services",
+    "copy-services": "node -e \"const fs=require('fs'); const path=require('path'); fs.cpSync('server/services', 'dist/server/services', {recursive:true})\"",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "start:render": "node dist/index.js",
     "check": "tsc",
