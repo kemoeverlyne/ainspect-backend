@@ -291,6 +291,12 @@ app.use((req, res, next) => {
     // The frontend runs independently on its own server
     log("Backend server running independently - frontend should be running separately");
 
+    // For Vercel serverless functions, don't start the server
+    if (process.env.VERCEL) {
+      log("Running in Vercel serverless mode - app ready");
+      return;
+    }
+
     // Cloud Run: listen on the provided PORT and 0.0.0.0
     const port = Number(process.env.PORT || 8080);
     const host = "0.0.0.0";
@@ -305,3 +311,6 @@ app.use((req, res, next) => {
   logger.error('Unhandled promise rejection during server startup:', error);
   process.exit(1);
 });
+
+// Export the app for Vercel serverless functions
+export default app;
