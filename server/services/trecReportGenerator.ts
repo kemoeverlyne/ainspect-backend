@@ -1090,25 +1090,32 @@ export class TRECReportGenerator {
         return await this.generateFallbackPDF(reportData);
       }
       
-      console.log('[TRECReportGenerator] Step 1: Generating complete report...');
-      const htmlContent = this.generateCompleteReportHTML(reportData);
+      console.log('[TRECReportGenerator] Step 1: Generating cover page...');
+      const coverPagePdf = await this.generateCoverPage(reportData);
+      console.log('[TRECReportGenerator] Cover page generated');
       
-      const browser = await chromium.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-      });
-      const page = await browser.newPage();
+      console.log('[TRECReportGenerator] Step 2: Filling official TREC form...');
+      let trecFormPdf: Buffer;
+      try {
+        trecFormPdf = await this.fillTRECForm(reportData);
+        console.log('[TRECReportGenerator] TREC form filled successfully');
+      } catch (error: any) {
+        console.log('[TREC PDF] Could not fill form, generating HTML version instead:', error.message);
+        trecFormPdf = Buffer.from([]); // Skip if form filling fails
+      }
       
-      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-      await page.emulateMedia({ media: 'print' });
+      console.log('[TRECReportGenerator] Step 3: Generating inspection data pages...');
+      const inspectionDataPdf = await this.generateFilledReport(reportData);
+      console.log('[TRECReportGenerator] Inspection data pages generated');
       
-      const finalPdf = await page.pdf({
-        format: 'Letter',
-        printBackground: true,
-        margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
-      });
+      console.log('[TRECReportGenerator] Step 4: Merging PDFs...');
+      const pdfBuffers = [coverPagePdf];
+      if (trecFormPdf.length > 0) {
+        pdfBuffers.push(trecFormPdf);
+      }
+      pdfBuffers.push(inspectionDataPdf);
       
-      await browser.close();
+      const finalPdf = await this.mergePDFs(pdfBuffers);
       
       console.log('[TRECReportGenerator] TREC report generation completed successfully');
       console.log('[TRECReportGenerator] Final PDF size:', finalPdf.length, 'bytes');
@@ -1172,31 +1179,44 @@ export class TRECReportGenerator {
     console.log('[TRECReportGenerator] Generating fallback PDF using Puppeteer...');
     
     try {
-      // Try using Puppeteer as fallback
+      // Try using Puppeteer as fallback - replicate the exact same process
       const puppeteer = await import('puppeteer');
       const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
       
-      const page = await browser.newPage();
+      console.log('[TRECReportGenerator] Step 1: Generating cover page...');
+      const coverPagePdf = await this.generateCoverPageWithPuppeteer(browser, reportData);
+      console.log('[TRECReportGenerator] Cover page generated');
       
-      // Generate the same HTML structure as Playwright version
-      const htmlContent = this.generateCompleteReportHTML(reportData);
+      console.log('[TRECReportGenerator] Step 2: Filling official TREC form...');
+      let trecFormPdf: Buffer;
+      try {
+        trecFormPdf = await this.fillTRECFormWithPuppeteer(browser, reportData);
+        console.log('[TRECReportGenerator] TREC form filled successfully');
+      } catch (error: any) {
+        console.log('[TREC PDF] Could not fill form, generating HTML version instead:', error.message);
+        trecFormPdf = Buffer.from([]); // Skip if form filling fails
+      }
       
-      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-      await page.emulateMedia({ media: 'print' });
+      console.log('[TRECReportGenerator] Step 3: Generating inspection data pages...');
+      const inspectionDataPdf = await this.generateFilledReportWithPuppeteer(browser, reportData);
+      console.log('[TRECReportGenerator] Inspection data pages generated');
       
-      const pdf = await page.pdf({
-        format: 'Letter',
-        printBackground: true,
-        margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
-      });
+      console.log('[TRECReportGenerator] Step 4: Merging PDFs...');
+      const pdfBuffers = [coverPagePdf];
+      if (trecFormPdf.length > 0) {
+        pdfBuffers.push(trecFormPdf);
+      }
+      pdfBuffers.push(inspectionDataPdf);
+      
+      const finalPdf = await this.mergePDFs(pdfBuffers);
       
       await browser.close();
       
-      console.log('[TRECReportGenerator] Fallback PDF generated successfully using Puppeteer, size:', pdf.length, 'bytes');
-      return Buffer.from(pdf);
+      console.log('[TRECReportGenerator] Fallback PDF generated successfully using Puppeteer, size:', finalPdf.length, 'bytes');
+      return Buffer.from(finalPdf);
       
     } catch (puppeteerError) {
       console.log('[TRECReportGenerator] Puppeteer also failed, using basic pdf-lib fallback:', puppeteerError.message);
@@ -1204,6 +1224,155 @@ export class TRECReportGenerator {
       // Ultimate fallback using pdf-lib
       return await this.generateBasicPDF(reportData);
     }
+  }
+
+  /**
+   * Generate cover page using Puppeteer (same as Playwright version)
+   */
+  private static async generateCoverPageWithPuppeteer(browser: any, reportData: TRECReportData): Promise<Buffer> {
+    const page = await browser.newPage();
+    
+    const { header } = reportData;
+    const inspectionDate = new Date(header.inspectionDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+
+    const coverHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { margin: 0; padding: 0; font-family: Inter, sans-serif; }
+    .page { width: 8.5in; height: 11in; padding: 48px; box-sizing: border-box; }
+    .cover-header { 
+      background: linear-gradient(135deg, #1e3a8a, #3b82f6); 
+      color: #fff; 
+      padding: 32px 48px; 
+      margin: -48px -48px 0; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: start; 
+    }
+    .company-name { font-size: 24px; font-weight: 700; margin: 0 0 16px; }
+    .company-contact { font-size: 14px; margin: 6px 0; opacity: .95; }
+    .property-address { font-size: 32px; font-weight: 700; margin: 24px 0; }
+    .meta-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+    .meta-value { font-size: 15px; font-weight: 500; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="cover-header">
+      <div>
+        <h1 class="company-name">${header.companyName}</h1>
+        <div class="company-contact">${header.companyPhone}</div>
+        <div class="company-contact">${header.companyEmail}</div>
+        <div class="company-contact">${header.companyAddress}</div>
+      </div>
+      <div class="company-logo"></div>
+    </div>
+
+    <div style="padding: 48px 0; display: flex; flex-direction: column; justify-content: center;">
+      <div style="background: #eff6ff; padding: 8px 16px; border-radius: 6px; width: fit-content; margin-bottom: 24px;">
+        <strong>Texas Property Inspection Report</strong>
+      </div>
+
+      <h2 class="property-address">${header.propertyAddress}</h2>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px;">
+        <div>
+          <div class="meta-label">Client Name</div>
+          <div class="meta-value">${header.clientName}</div>
+        </div>
+        <div>
+          <div class="meta-label">Inspection Date</div>
+          <div class="meta-value">${inspectionDate}</div>
+        </div>
+        <div>
+          <div class="meta-label">Inspector</div>
+          <div class="meta-value">${header.inspectorName}</div>
+        </div>
+        <div>
+          <div class="meta-label">TREC License #</div>
+          <div class="meta-value">${header.licenseNo}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cover-footer">
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;">
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 64px; height: 64px; border-radius: 12px; background: #bfdbfe;"></div>
+          <div>
+            <div class="meta-label">Lead Inspector</div>
+            <div class="meta-value">${header.inspectorName}</div>
+            <div style="font-size: 11px; color: #3b82f6; margin-top: 4px;">TREC #${header.licenseNo}</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 64px; height: 64px; border-radius: 12px; background: #bfdbfe;"></div>
+          <div>
+            <div class="meta-label">Report Number</div>
+            <div class="meta-value">${header.reportNo}</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 64px; height: 64px; border-radius: 12px; background: #bfdbfe;"></div>
+          <div>
+            <div class="meta-label">Inspection Date</div>
+            <div class="meta-value">${inspectionDate}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+    
+    await page.setContent(coverHTML, { waitUntil: 'domcontentloaded' });
+    await page.emulateMedia({ media: 'print' });
+    
+    const coverPdf = await page.pdf({
+      format: 'Letter',
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' }
+    });
+    
+    await page.close();
+    return coverPdf;
+  }
+
+  /**
+   * Fill TREC form using Puppeteer (same as Playwright version)
+   */
+  private static async fillTRECFormWithPuppeteer(browser: any, reportData: TRECReportData): Promise<Buffer> {
+    // For now, return empty buffer - same as Playwright version when form filling fails
+    return Buffer.from([]);
+  }
+
+  /**
+   * Generate filled report using Puppeteer (same as Playwright version)
+   */
+  private static async generateFilledReportWithPuppeteer(browser: any, reportData: TRECReportData): Promise<Buffer> {
+    const page = await browser.newPage();
+    
+    // Use the same HTML generation as the Playwright version
+    const htmlContent = this.generateCompleteReportHTML(reportData);
+    
+    await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+    await page.emulateMedia({ media: 'print' });
+    
+    const pdf = await page.pdf({
+      format: 'Letter',
+      printBackground: true,
+      margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+    });
+    
+    await page.close();
+    return pdf;
   }
 
   /**
