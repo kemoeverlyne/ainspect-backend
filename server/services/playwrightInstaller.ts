@@ -10,7 +10,7 @@ export class PlaywrightInstaller {
       
       // First, try to install with system dependencies
       console.log('[PLAYWRIGHT INSTALLER] Installing with system dependencies...');
-      const { stdout, stderr } = await execAsync('npx playwright install chromium --with-deps', {
+      const { stdout, stderr } = await execAsync('npx playwright install chromium chromium-headless-shell --with-deps', {
         timeout: 300000, // 5 minutes timeout
         maxBuffer: 1024 * 1024 * 10 // 10MB buffer
       });
@@ -31,7 +31,7 @@ export class PlaywrightInstaller {
       } else {
         // Try alternative installation method
         console.log('[PLAYWRIGHT INSTALLER] Trying alternative installation method...');
-        const { stdout: altStdout, stderr: altStderr } = await execAsync('npx playwright install chromium', {
+        const { stdout: altStdout, stderr: altStderr } = await execAsync('npx playwright install chromium chromium-headless-shell', {
           timeout: 300000,
           maxBuffer: 1024 * 1024 * 10
         });
@@ -71,11 +71,15 @@ export class PlaywrightInstaller {
       const { stdout: altCheck } = await execAsync('find /opt -name "*chromium*" -type d 2>/dev/null | head -5 || echo "not found"');
       console.log('[PLAYWRIGHT INSTALLER] Alternative chromium check:', altCheck);
       
-      const isInstalled = chromiumCheck.includes('chromium') || altCheck.includes('chromium');
+      // Check specifically for headless shell
+      const { stdout: headlessCheck } = await execAsync('find /opt -name "*headless_shell*" 2>/dev/null | head -3 || echo "not found"');
+      console.log('[PLAYWRIGHT INSTALLER] Headless shell check:', headlessCheck);
+      
+      const isInstalled = chromiumCheck.includes('chromium') || altCheck.includes('chromium') || headlessCheck.includes('headless_shell');
       
       return {
         installed: isInstalled,
-        message: `Playwright version: ${stdout.trim()}, Chromium cache: ${chromiumCheck.includes('chromium') ? 'found' : 'not found'}, Alternative: ${altCheck.includes('chromium') ? 'found' : 'not found'}`
+        message: `Playwright version: ${stdout.trim()}, Chromium cache: ${chromiumCheck.includes('chromium') ? 'found' : 'not found'}, Alternative: ${altCheck.includes('chromium') ? 'found' : 'not found'}, Headless shell: ${headlessCheck.includes('headless_shell') ? 'found' : 'not found'}`
       };
     } catch (error) {
       console.error('[PLAYWRIGHT INSTALLER] Check failed:', error);
