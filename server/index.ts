@@ -87,18 +87,47 @@ app.use(passport.session());
 
 // Security middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [
-        'https://test-version-frontend.vercel.app',
-        'https://test-version-frontend-git-main-ainspect.vercel.app',
-        'https://ainspect-frontend-164593694555.us-central1.run.app',
-        ...(process.env.ALLOWED_ORIGINS?.split(',') || [])
-      ]
-    : true,
+  origin: function (origin, callback) {
+    console.log('[CORS DEBUG] Request origin:', origin);
+    console.log('[CORS DEBUG] NODE_ENV:', process.env.NODE_ENV);
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log('[CORS DEBUG] Allowing request with no origin');
+      return callback(null, true);
+    }
+    
+    const allowedOrigins = [
+      'https://test-version-frontend.vercel.app',
+      'https://test-version-frontend-git-main-ainspect.vercel.app',
+      'https://ainspect-frontend-164593694555.us-central1.run.app',
+      ...(process.env.ALLOWED_ORIGINS?.split(',') || [])
+    ];
+    
+    console.log('[CORS DEBUG] Allowed origins:', allowedOrigins);
+    
+    if (allowedOrigins.includes(origin)) {
+      console.log('[CORS DEBUG] Origin allowed:', origin);
+      callback(null, true);
+    } else {
+      console.log('[CORS DEBUG] Origin blocked:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-csrf-token']
 }));
+
+// Manual OPTIONS handler for preflight requests
+app.options('*', (req, res) => {
+  console.log('[CORS OPTIONS] Handling preflight request for:', req.path);
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,x-csrf-token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
 
 // Rate limiting - DISABLED FOR DEVELOPMENT
 // const generalLimiter = rateLimit({
