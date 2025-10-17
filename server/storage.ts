@@ -886,6 +886,9 @@ export class DatabaseStorage implements IStorage {
           status: trecInspections.status,
           completedSections: trecInspections.completedSections,
           totalPhotos: trecInspections.totalPhotos,
+          companyData: trecInspections.companyData,
+          warrantyData: trecInspections.warrantyData,
+          inspectionData: trecInspections.inspectionData,
           createdAt: trecInspections.createdAt,
           updatedAt: trecInspections.updatedAt,
           completedAt: trecInspections.completedAt

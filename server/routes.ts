@@ -1776,6 +1776,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let inspection = await storage.getTRECInspection(id);
       
+      // If found in new trec_inspections table, ensure all expected fields are present
+      if (inspection) {
+        console.log(`[TREC INSPECTION GET] Found TREC inspection in trec_inspections table`);
+        console.log(`[TREC INSPECTION GET] Inspection keys:`, Object.keys(inspection));
+        
+        // Ensure all expected fields are present with fallbacks
+        const enhancedInspection = {
+          ...inspection,
+          clientEmail: (inspection as any).clientEmail || '',
+          clientPhone: (inspection as any).clientPhone || '',
+          propertyType: (inspection as any).propertyType || 'Single Family',
+          squareFootage: (inspection as any).squareFootage || '',
+          yearBuilt: (inspection as any).yearBuilt || '',
+          inspectorEmail: (inspection as any).inspectorEmail || '',
+          inspectorPhone: (inspection as any).inspectorPhone || '',
+          realtorName: (inspection as any).realtorName || '',
+          realtorCompany: (inspection as any).realtorCompany || '',
+          realtorPhone: (inspection as any).realtorPhone || '',
+          realtorEmail: (inspection as any).realtorEmail || '',
+          weather: (inspection as any).weather || '',
+          photos: (inspection as any).photos || [],
+          frontHomePhoto: (inspection as any).frontHomePhoto || '',
+          companyData: inspection.companyData || {},
+          warrantyData: inspection.warrantyData || {},
+          inspectionData: inspection.inspectionData || {},
+        };
+        
+        inspection = enhancedInspection;
+        
+        console.log(`[TREC INSPECTION GET] Enhanced inspection data:`, {
+          id: inspection?.id,
+          clientName: inspection?.clientName,
+          clientEmail: (inspection as any)?.clientEmail,
+          clientPhone: (inspection as any)?.clientPhone,
+          propertyAddress: inspection?.propertyAddress,
+          inspectorName: inspection?.inspectorName,
+          trecLicenseNumber: inspection?.trecLicenseNumber,
+          realtorName: (inspection as any)?.realtorName,
+          hasCompanyData: !!(inspection?.companyData && Object.keys(inspection.companyData).length > 0),
+          hasWarrantyData: !!(inspection?.warrantyData && Object.keys(inspection.warrantyData).length > 0),
+          hasInspectionData: !!(inspection?.inspectionData && Object.keys(inspection.inspectionData).length > 0),
+          photosCount: (inspection as any)?.photos?.length || 0,
+        });
+      }
+      
       // If not found in trec_inspections table, check the old inspection_reports table
       if (!inspection) {
         console.log(`[TREC INSPECTION GET] Not found in trec_inspections table, checking inspection_reports table...`);
@@ -1795,18 +1840,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const transformedInspection: any = {
             id: oldReport.id,
             clientName: (oldReport as any).clientName || reportData.clientName || `${oldReport.clientFirstName} ${oldReport.clientLastName}`,
+            clientEmail: reportData.clientEmail || (oldReport as any).clientEmail || '',
+            clientPhone: reportData.clientPhone || (oldReport as any).clientPhone || '',
             inspectionDate: reportData.inspectionDate || oldReport.createdAt || new Date(),
             propertyAddress: oldReport.propertyAddress || reportData.propertyAddress || '',
-            inspectorName: reportData.inspectorName || '',
+            propertyType: reportData.propertyType || (oldReport as any).propertyType || 'Single Family',
+            squareFootage: reportData.squareFootage || (oldReport as any).squareFootage || '',
+            yearBuilt: reportData.yearBuilt || (oldReport as any).yearBuilt || '',
+            inspectorName: reportData.inspectorName || oldReport.inspectorName || '',
+            inspectorEmail: reportData.inspectorEmail || (oldReport as any).inspectorEmail || '',
+            inspectorPhone: reportData.inspectorPhone || (oldReport as any).inspectorPhone || '',
             trecLicenseNumber: oldReport.trecLicenseNumber || reportData.trecLicenseNumber || '',
             sponsorName: oldReport.sponsorName || reportData.sponsorName || '',
             sponsorTrecLicenseNumber: oldReport.sponsorTrecLicenseNumber || reportData.sponsorTrecLicenseNumber || '',
+            realtorName: reportData.realtorName || (oldReport as any).realtorName || '',
+            realtorCompany: reportData.realtorCompany || (oldReport as any).realtorCompany || '',
+            realtorPhone: reportData.realtorPhone || (oldReport as any).realtorPhone || '',
+            realtorEmail: reportData.realtorEmail || (oldReport as any).realtorEmail || '',
+            weather: reportData.weather || (oldReport as any).weather || '',
             inspectorId: oldReport.inspectorId,
             status: oldReport.status || 'draft',
             completedSections: reportData.completedSections || [],
             companyData: reportData.companyData || {},
             warrantyData: reportData.warrantyData || {},
             inspectionData: reportData.inspectionData || {},
+            photos: reportData.photos || (oldReport as any).photos || [],
+            frontHomePhoto: reportData.frontHomePhoto || (oldReport as any).frontHomePhoto || '',
             createdAt: oldReport.createdAt || new Date(),
             updatedAt: oldReport.updatedAt || new Date(),
           };
@@ -1816,9 +1875,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[TREC INSPECTION GET] Transformed inspection data:`, {
             id: inspection?.id,
             clientName: inspection?.clientName,
+            clientEmail: (inspection as any)?.clientEmail,
+            clientPhone: (inspection as any)?.clientPhone,
+            propertyAddress: inspection?.propertyAddress,
+            inspectorName: inspection?.inspectorName,
+            trecLicenseNumber: inspection?.trecLicenseNumber,
+            realtorName: (inspection as any)?.realtorName,
             hasCompanyData: !!(inspection?.companyData && Object.keys(inspection.companyData).length > 0),
             hasWarrantyData: !!(inspection?.warrantyData && Object.keys(inspection.warrantyData).length > 0),
             hasInspectionData: !!(inspection?.inspectionData && Object.keys(inspection.inspectionData).length > 0),
+            photosCount: (inspection as any)?.photos?.length || 0,
           });
         }
       }
