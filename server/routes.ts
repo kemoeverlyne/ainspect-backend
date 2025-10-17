@@ -3355,6 +3355,52 @@ Response format:
 
   const httpServer = createServer(app);
   
+  // Playwright browser installation endpoints (for Pro plan manual installation)
+  app.post('/api/admin/install-playwright', async (req: Request, res) => {
+    try {
+      console.log('[ADMIN] Manual Playwright installation requested');
+      
+      const { PlaywrightInstaller } = await import('./services/playwrightInstaller.js');
+      const result = await PlaywrightInstaller.installBrowsers();
+      
+      res.json({
+        success: result.success,
+        message: result.message,
+        output: result.output,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('[ADMIN] Playwright installation error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to install Playwright browsers',
+        error: (error as Error).message
+      });
+    }
+  });
+
+  app.get('/api/admin/check-playwright', async (req: Request, res) => {
+    try {
+      console.log('[ADMIN] Checking Playwright installation status');
+      
+      const { PlaywrightInstaller } = await import('./services/playwrightInstaller.js');
+      const result = await PlaywrightInstaller.checkBrowserInstallation();
+      
+      res.json({
+        installed: result.installed,
+        message: result.message,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('[ADMIN] Playwright check error:', error);
+      res.status(500).json({
+        installed: false,
+        message: 'Failed to check Playwright installation',
+        error: (error as Error).message
+      });
+    }
+  });
+
   // Graceful shutdown
   process.on('SIGTERM', () => {
     console.log('SIGTERM received, shutting down gracefully');
