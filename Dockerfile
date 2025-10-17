@@ -11,8 +11,8 @@ COPY drizzle.config.ts ./
 # Install all dependencies (including devDependencies for build)
 RUN npm ci
 
-# Install Playwright browsers
-RUN npx playwright install chromium --with-deps
+# Try to install Playwright browsers (may fail in some environments)
+RUN npx playwright install chromium || echo "Playwright installation failed, fallback will be used"
 
 # Copy source code
 COPY server/ ./server/
@@ -21,11 +21,8 @@ COPY shared/ ./shared/
 # Build the application
 RUN npm run build
 
-# Remove devDependencies after build but keep Playwright
+# Remove devDependencies after build
 RUN npm ci --only=production && npm cache clean --force
-
-# Reinstall Playwright browsers after production install
-RUN npx playwright install chromium --with-deps
 
 # Create necessary directories
 RUN mkdir -p uploads/logos assets logs

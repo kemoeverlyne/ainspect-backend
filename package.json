@@ -10,7 +10,7 @@
     "copy-services": "node -e \"const fs=require('fs'); const path=require('path'); fs.cpSync('server/services', 'dist/server/services', {recursive:true})\"",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "start:render": "node dist/index.js",
-    "postinstall": "npx playwright install chromium --with-deps",
+    "postinstall": "npx playwright install chromium || echo 'Playwright installation failed, continuing with fallback...'",
     "install-browsers": "npx playwright install chromium --with-deps",
     "check": "tsc",
     "db:push": "drizzle-kit push",

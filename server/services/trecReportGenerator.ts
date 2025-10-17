@@ -59,7 +59,10 @@ export class TRECReportGenerator {
    * Generate cover page only
    */
   private static async generateCoverPage(reportData: TRECReportData): Promise<Buffer> {
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    });
     const page = await browser.newPage();
     
     const { header } = reportData;
@@ -1142,7 +1145,11 @@ export class TRECReportGenerator {
    */
   private static async checkPlaywrightAvailability(): Promise<boolean> {
     try {
-      const browser = await chromium.launch({ headless: true });
+      // Try to launch browser with minimal options
+      const browser = await chromium.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
       await browser.close();
       return true;
     } catch (error) {
