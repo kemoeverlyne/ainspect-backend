@@ -242,7 +242,10 @@ const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     // TREC inspections endpoint (bypasses CSRF for development)
     '/trec/inspections',
     // Reports save endpoint (bypasses CSRF for development)
-    '/reports/save'
+    '/reports/save',
+    // Admin endpoints for Playwright installation (bypasses CSRF for development)
+    '/admin/install-playwright',
+    '/admin/check-playwright'
   ];
   
   // Debug logging
