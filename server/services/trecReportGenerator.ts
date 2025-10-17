@@ -1079,6 +1079,14 @@ export class TRECReportGenerator {
         sectionIds: Object.keys(reportData.sections)
       });
       
+      // Check if Playwright is available
+      const playwrightAvailable = await this.checkPlaywrightAvailability();
+      
+      if (!playwrightAvailable) {
+        console.log('[TRECReportGenerator] Playwright not available, using fallback PDF generation...');
+        return await this.generateFallbackPDF(reportData);
+      }
+      
       console.log('[TRECReportGenerator] Step 1: Generating cover page...');
       const coverPagePdf = await this.generateCoverPage(reportData);
       console.log('[TRECReportGenerator] Cover page generated');
@@ -1113,8 +1121,144 @@ export class TRECReportGenerator {
       
     } catch (error: any) {
       console.error('[TRECReportGenerator] Error generating TREC report:', error);
+      
+      // If Playwright fails, try fallback
+      if (error.message.includes('Executable doesn\'t exist') || error.message.includes('browserType.launch')) {
+        console.log('[TRECReportGenerator] Playwright error detected, trying fallback PDF generation...');
+        try {
+          return await this.generateFallbackPDF(reportData);
+        } catch (fallbackError: any) {
+          console.error('[TRECReportGenerator] Fallback PDF generation also failed:', fallbackError);
+          throw new Error(`Failed to generate TREC report: ${error.message}`);
+        }
+      }
+      
       throw new Error(`Failed to generate TREC report: ${error.message}`);
     }
+  }
+
+  /**
+   * Check if Playwright is available and working
+   */
+  private static async checkPlaywrightAvailability(): Promise<boolean> {
+    try {
+      const browser = await chromium.launch({ headless: true });
+      await browser.close();
+      return true;
+    } catch (error) {
+      console.log('[TRECReportGenerator] Playwright not available:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Generate a fallback PDF using pdf-lib when Playwright is not available
+   */
+  private static async generateFallbackPDF(reportData: TRECReportData): Promise<Buffer> {
+    console.log('[TRECReportGenerator] Generating fallback PDF using pdf-lib...');
+    
+    const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+    const pdfDoc = await PDFDocument.create();
+    
+    // Add a page
+    const page = pdfDoc.addPage([612, 792]); // Letter size
+    const { width, height } = page.getSize();
+    
+    // Add title
+    const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    
+    page.drawText('TREC Property Inspection Report', {
+      x: 50,
+      y: height - 50,
+      size: 20,
+      font: font,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add header information
+    const { header } = reportData;
+    let yPosition = height - 100;
+    
+    const addText = (text: string, x: number, y: number, size: number = 12, isBold: boolean = false) => {
+      page.drawText(text, {
+        x,
+        y,
+        size,
+        font: isBold ? font : regularFont,
+        color: rgb(0, 0, 0),
+      });
+    };
+    
+    addText('Client Name:', 50, yPosition, 12, true);
+    addText(header.clientName, 150, yPosition);
+    yPosition -= 20;
+    
+    addText('Property Address:', 50, yPosition, 12, true);
+    addText(header.propertyAddress, 150, yPosition);
+    yPosition -= 20;
+    
+    addText('Inspector Name:', 50, yPosition, 12, true);
+    addText(header.inspectorName, 150, yPosition);
+    yPosition -= 20;
+    
+    addText('License Number:', 50, yPosition, 12, true);
+    addText(header.licenseNo, 150, yPosition);
+    yPosition -= 20;
+    
+    addText('Inspection Date:', 50, yPosition, 12, true);
+    addText(new Date(header.inspectionDate).toLocaleDateString(), 150, yPosition);
+    yPosition -= 40;
+    
+    // Add sections
+    addText('INSPECTION SECTIONS', 50, yPosition, 14, true);
+    yPosition -= 30;
+    
+    const sections = reportData.sections;
+    for (const [sectionId, sectionData] of Object.entries(sections)) {
+      if (yPosition < 100) {
+        // Add new page if needed
+        const newPage = pdfDoc.addPage([612, 792]);
+        yPosition = newPage.getSize().height - 50;
+      }
+      
+      addText(`Section ${sectionId}:`, 50, yPosition, 12, true);
+      yPosition -= 20;
+      
+      for (const [itemKey, itemData] of Object.entries(sectionData)) {
+        if (yPosition < 80) {
+          const newPage = pdfDoc.addPage([612, 792]);
+          yPosition = newPage.getSize().height - 50;
+        }
+        
+        addText(`  ${itemKey}:`, 70, yPosition, 10, true);
+        if (itemData.rating) {
+          addText(`Rating: ${itemData.rating}`, 200, yPosition, 10);
+        }
+        yPosition -= 15;
+        
+        if (itemData.comment) {
+          addText(`Comment: ${itemData.comment}`, 70, yPosition, 10);
+          yPosition -= 15;
+        }
+      }
+      yPosition -= 10;
+    }
+    
+    // Add footer
+    const lastPage = pdfDoc.getPages()[pdfDoc.getPageCount() - 1];
+    lastPage.drawText('Generated by AInspect - Professional Property Inspection Software', {
+      x: 50,
+      y: 30,
+      size: 10,
+      font: regularFont,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+    
+    const pdfBytes = await pdfDoc.save();
+    console.log('[TRECReportGenerator] Fallback PDF generated successfully, size:', pdfBytes.length, 'bytes');
+    
+    return Buffer.from(pdfBytes);
   }
 
   /**
