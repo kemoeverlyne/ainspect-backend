@@ -88,9 +88,16 @@ app.use(passport.session());
 // Security middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.ALLOWED_ORIGINS?.split(',') || ['https://your-frontend-domain.com']
+    ? [
+        'https://test-version-frontend.vercel.app',
+        'https://test-version-frontend-git-main-ainspect.vercel.app',
+        'https://ainspect-frontend-164593694555.us-central1.run.app',
+        ...(process.env.ALLOWED_ORIGINS?.split(',') || [])
+      ]
     : true,
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Rate limiting - DISABLED FOR DEVELOPMENT
