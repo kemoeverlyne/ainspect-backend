@@ -118,14 +118,9 @@ export function setupSettingsRoutes(app: Express) {
   // COMPANY SETTINGS ROUTES (Admin Only)
   // ============================================================================
 
-  // Get company settings
+  // Get company settings (public read-only for all authenticated users)
   app.get('/api/settings/company', authenticateToken, async (req: any, res: Response) => {
     try {
-      // Only allow super_admin and manager roles to access company settings
-      if (req.user?.role !== 'super_admin' && req.user?.role !== 'manager') {
-        return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
-      }
-
       // Import db directly to avoid circular dependency
       const { db } = await import('./db');
       
