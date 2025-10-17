@@ -2911,12 +2911,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const reportId = req.params.id; // Report IDs are UUIDs (strings), not integers
+      console.log(`[REPORT SHARE] User ${currentUser.id} attempting to share report ${reportId}`);
+      
       const report = await storage.getInspectionReport(reportId);
       
       if (!report) {
+        console.log(`[REPORT SHARE] Report ${reportId} not found`);
         return res.status(404).json({ message: 'Report not found' });
       }
 
+      console.log(`[REPORT SHARE] Found report ${reportId} with inspectorId: ${report.inspectorId}`);
+      
       // Check if the current user owns this report
       if (report.inspectorId !== currentUser.id) {
         console.log(`[REPORT SHARE] Access denied: User ${currentUser.id} does not own report ${reportId} (owned by ${report.inspectorId})`);
