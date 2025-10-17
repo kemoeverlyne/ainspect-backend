@@ -2918,8 +2918,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if the current user owns this report
-      if (report.userId !== currentUser.id) {
-        console.log(`[REPORT SHARE] Access denied: User ${currentUser.id} does not own report ${reportId} (owned by ${report.userId})`);
+      if (report.inspectorId !== currentUser.id) {
+        console.log(`[REPORT SHARE] Access denied: User ${currentUser.id} does not own report ${reportId} (owned by ${report.inspectorId})`);
         return res.status(403).json({ message: 'Access denied: You can only share your own reports' });
       }
 
