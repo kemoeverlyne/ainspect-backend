@@ -157,6 +157,23 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
+// CSRF Token endpoint
+app.get('/api/csrf-token', (req, res) => {
+  res.json({
+    csrfToken: 'demo-csrf-token-' + Date.now()
+  });
+});
+
+// Onboarding Company endpoint
+app.put('/api/onboarding/company', (req, res) => {
+  console.log('Company onboarding data:', req.body);
+  res.json({
+    success: true,
+    message: 'Company profile updated successfully',
+    company: req.body
+  });
+});
+
 // Additional endpoints that might be needed
 app.get('/api/dashboard/inspections', (req, res) => {
   res.json({
