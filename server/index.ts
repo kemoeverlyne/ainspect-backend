@@ -240,7 +240,9 @@ const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     // TREC Development endpoint (bypasses CSRF for testing)
     '/trec/inspections/dev-create',
     // TREC inspections endpoint (bypasses CSRF for development)
-    '/trec/inspections'
+    '/trec/inspections',
+    // Reports save endpoint (bypasses CSRF for development)
+    '/reports/save'
   ];
   
   // Debug logging
