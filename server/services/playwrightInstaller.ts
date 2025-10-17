@@ -8,9 +8,9 @@ export class PlaywrightInstaller {
     try {
       console.log('[PLAYWRIGHT INSTALLER] Starting browser installation...');
       
-      // First, try to install with system dependencies
-      console.log('[PLAYWRIGHT INSTALLER] Installing with system dependencies...');
-      const { stdout, stderr } = await execAsync('npx playwright install chromium-headless-shell@1194 --with-deps', {
+      // First, try to install all browsers
+      console.log('[PLAYWRIGHT INSTALLER] Installing all browsers...');
+      const { stdout, stderr } = await execAsync('npx playwright install --with-deps', {
         timeout: 300000, // 5 minutes timeout
         maxBuffer: 1024 * 1024 * 10 // 10MB buffer
       });
@@ -31,7 +31,7 @@ export class PlaywrightInstaller {
       } else {
         // Try alternative installation method
         console.log('[PLAYWRIGHT INSTALLER] Trying alternative installation method...');
-        const { stdout: altStdout, stderr: altStderr } = await execAsync('npx playwright install chromium-headless-shell@1194', {
+        const { stdout: altStdout, stderr: altStderr } = await execAsync('npx playwright install', {
           timeout: 300000,
           maxBuffer: 1024 * 1024 * 10
         });
