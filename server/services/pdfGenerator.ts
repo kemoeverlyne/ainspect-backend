@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer';
 import { TRECReportData } from './trecReportGenerator.js';
 
 export interface PDFGenerationOptions {
@@ -117,15 +117,15 @@ export interface StandardInspectionData {
 }
 
 export class PDFGenerator {
-  private static browser: puppeteer.Browser | null = null;
+  private static browser: Browser | null = null;
 
   /**
    * Initialize Puppeteer browser instance
    */
-  private static async getBrowser(): Promise<puppeteer.Browser> {
+  private static async getBrowser(): Promise<Browser> {
     if (!this.browser) {
       this.browser = await puppeteer.launch({
-        headless: 'new',
+        headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -195,7 +195,7 @@ export class PDFGenerator {
 
     } catch (error) {
       console.error('[PDFGenerator] Error generating PDF:', error);
-      throw new Error(`Failed to generate PDF: ${error.message}`);
+      throw new Error(`Failed to generate PDF: ${(error as Error).message}`);
     }
   }
 
@@ -254,7 +254,7 @@ export class PDFGenerator {
 
     } catch (error) {
       console.error('[PDFGenerator] Error generating PDF from URL:', error);
-      throw new Error(`Failed to generate PDF from URL: ${error.message}`);
+      throw new Error(`Failed to generate PDF from URL: ${(error as Error).message}`);
     }
   }
 
@@ -273,7 +273,7 @@ export class PDFGenerator {
 
     } catch (error) {
       console.error('[PDFGenerator] Error generating standard report PDF:', error);
-      throw new Error(`Failed to generate standard report PDF: ${error.message}`);
+      throw new Error(`Failed to generate standard report PDF: ${(error as Error).message}`);
     }
   }
 
@@ -292,7 +292,7 @@ export class PDFGenerator {
 
     } catch (error) {
       console.error('[PDFGenerator] Error generating TREC report PDF:', error);
-      throw new Error(`Failed to generate TREC report PDF: ${error.message}`);
+      throw new Error(`Failed to generate TREC report PDF: ${(error as Error).message}`);
     }
   }
 
