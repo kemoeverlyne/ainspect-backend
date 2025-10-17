@@ -8,19 +8,45 @@ export class PlaywrightInstaller {
     try {
       console.log('[PLAYWRIGHT INSTALLER] Starting browser installation...');
       
-      // Install Playwright browsers
-      const { stdout, stderr } = await execAsync('npx playwright install chromium --with-deps');
+      // First, try to install with system dependencies
+      console.log('[PLAYWRIGHT INSTALLER] Installing with system dependencies...');
+      const { stdout, stderr } = await execAsync('npx playwright install chromium --with-deps', {
+        timeout: 300000, // 5 minutes timeout
+        maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+      });
       
       console.log('[PLAYWRIGHT INSTALLER] Installation output:', stdout);
       if (stderr) {
         console.log('[PLAYWRIGHT INSTALLER] Installation stderr:', stderr);
       }
       
-      return {
-        success: true,
-        message: 'Playwright browsers installed successfully',
-        output: stdout
-      };
+      // Verify installation
+      const verification = await this.checkBrowserInstallation();
+      if (verification.installed) {
+        return {
+          success: true,
+          message: 'Playwright browsers installed successfully',
+          output: stdout
+        };
+      } else {
+        // Try alternative installation method
+        console.log('[PLAYWRIGHT INSTALLER] Trying alternative installation method...');
+        const { stdout: altStdout, stderr: altStderr } = await execAsync('npx playwright install chromium', {
+          timeout: 300000,
+          maxBuffer: 1024 * 1024 * 10
+        });
+        
+        console.log('[PLAYWRIGHT INSTALLER] Alternative installation output:', altStdout);
+        if (altStderr) {
+          console.log('[PLAYWRIGHT INSTALLER] Alternative installation stderr:', altStderr);
+        }
+        
+        return {
+          success: true,
+          message: 'Playwright browsers installed with alternative method',
+          output: altStdout
+        };
+      }
     } catch (error) {
       console.error('[PLAYWRIGHT INSTALLER] Installation failed:', error);
       return {
@@ -41,9 +67,15 @@ export class PlaywrightInstaller {
       const { stdout: chromiumCheck } = await execAsync('ls -la /opt/render/.cache/ms-playwright/ 2>/dev/null || echo "not found"');
       console.log('[PLAYWRIGHT INSTALLER] Chromium cache check:', chromiumCheck);
       
+      // Also check if we can find chromium in other common locations
+      const { stdout: altCheck } = await execAsync('find /opt -name "*chromium*" -type d 2>/dev/null | head -5 || echo "not found"');
+      console.log('[PLAYWRIGHT INSTALLER] Alternative chromium check:', altCheck);
+      
+      const isInstalled = chromiumCheck.includes('chromium') || altCheck.includes('chromium');
+      
       return {
-        installed: chromiumCheck.includes('chromium'),
-        message: `Playwright version: ${stdout.trim()}, Chromium cache: ${chromiumCheck.includes('chromium') ? 'found' : 'not found'}`
+        installed: isInstalled,
+        message: `Playwright version: ${stdout.trim()}, Chromium cache: ${chromiumCheck.includes('chromium') ? 'found' : 'not found'}, Alternative: ${altCheck.includes('chromium') ? 'found' : 'not found'}`
       };
     } catch (error) {
       console.error('[PLAYWRIGHT INSTALLER] Check failed:', error);
