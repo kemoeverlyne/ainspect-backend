@@ -1090,32 +1090,25 @@ export class TRECReportGenerator {
         return await this.generateFallbackPDF(reportData);
       }
       
-      console.log('[TRECReportGenerator] Step 1: Generating cover page...');
-      const coverPagePdf = await this.generateCoverPage(reportData);
-      console.log('[TRECReportGenerator] Cover page generated');
+      console.log('[TRECReportGenerator] Step 1: Generating complete report...');
+      const htmlContent = this.generateCompleteReportHTML(reportData);
       
-      console.log('[TRECReportGenerator] Step 2: Filling official TREC form...');
-      let trecFormPdf: Buffer;
-      try {
-        trecFormPdf = await this.fillTRECForm(reportData);
-        console.log('[TRECReportGenerator] TREC form filled successfully');
-      } catch (error: any) {
-        console.log('[TREC PDF] Could not fill form, generating HTML version instead:', error.message);
-        trecFormPdf = Buffer.from([]); // Skip if form filling fails
-      }
+      const browser = await chromium.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+      const page = await browser.newPage();
       
-      console.log('[TRECReportGenerator] Step 3: Generating inspection data pages...');
-      const inspectionDataPdf = await this.generateFilledReport(reportData);
-      console.log('[TRECReportGenerator] Inspection data pages generated');
+      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+      await page.emulateMedia({ media: 'print' });
       
-      console.log('[TRECReportGenerator] Step 4: Merging PDFs...');
-      const pdfBuffers = [coverPagePdf];
-      if (trecFormPdf.length > 0) {
-        pdfBuffers.push(trecFormPdf);
-      }
-      pdfBuffers.push(inspectionDataPdf);
+      const finalPdf = await page.pdf({
+        format: 'Letter',
+        printBackground: true,
+        margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+      });
       
-      const finalPdf = await this.mergePDFs(pdfBuffers);
+      await browser.close();
       
       console.log('[TRECReportGenerator] TREC report generation completed successfully');
       console.log('[TRECReportGenerator] Final PDF size:', finalPdf.length, 'bytes');
@@ -1154,15 +1147,70 @@ export class TRECReportGenerator {
       return true;
     } catch (error) {
       console.log('[TRECReportGenerator] Playwright not available:', error.message);
-      return false;
+      
+      // Check if Puppeteer is available as alternative
+      try {
+        const puppeteer = await import('puppeteer');
+        const browser = await puppeteer.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        });
+        await browser.close();
+        console.log('[TRECReportGenerator] Puppeteer is available as fallback');
+        return true; // We can use Puppeteer fallback
+      } catch (puppeteerError) {
+        console.log('[TRECReportGenerator] Neither Playwright nor Puppeteer available:', puppeteerError.message);
+        return false;
+      }
     }
   }
 
   /**
-   * Generate a fallback PDF using pdf-lib when Playwright is not available
+   * Generate a fallback PDF using Puppeteer when Playwright is not available
    */
   private static async generateFallbackPDF(reportData: TRECReportData): Promise<Buffer> {
-    console.log('[TRECReportGenerator] Generating fallback PDF using pdf-lib...');
+    console.log('[TRECReportGenerator] Generating fallback PDF using Puppeteer...');
+    
+    try {
+      // Try using Puppeteer as fallback
+      const puppeteer = await import('puppeteer');
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      });
+      
+      const page = await browser.newPage();
+      
+      // Generate the same HTML structure as Playwright version
+      const htmlContent = this.generateCompleteReportHTML(reportData);
+      
+      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+      await page.emulateMedia({ media: 'print' });
+      
+      const pdf = await page.pdf({
+        format: 'Letter',
+        printBackground: true,
+        margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+      });
+      
+      await browser.close();
+      
+      console.log('[TRECReportGenerator] Fallback PDF generated successfully using Puppeteer, size:', pdf.length, 'bytes');
+      return Buffer.from(pdf);
+      
+    } catch (puppeteerError) {
+      console.log('[TRECReportGenerator] Puppeteer also failed, using basic pdf-lib fallback:', puppeteerError.message);
+      
+      // Ultimate fallback using pdf-lib
+      return await this.generateBasicPDF(reportData);
+    }
+  }
+
+  /**
+   * Generate a basic PDF using pdf-lib as ultimate fallback
+   */
+  private static async generateBasicPDF(reportData: TRECReportData): Promise<Buffer> {
+    console.log('[TRECReportGenerator] Generating basic PDF using pdf-lib...');
     
     const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
     const pdfDoc = await PDFDocument.create();
@@ -1263,7 +1311,7 @@ export class TRECReportGenerator {
     });
     
     const pdfBytes = await pdfDoc.save();
-    console.log('[TRECReportGenerator] Fallback PDF generated successfully, size:', pdfBytes.length, 'bytes');
+    console.log('[TRECReportGenerator] Basic PDF generated successfully, size:', pdfBytes.length, 'bytes');
     
     return Buffer.from(pdfBytes);
   }
