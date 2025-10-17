@@ -2917,6 +2917,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Report not found' });
       }
 
+      // Check if the current user owns this report
+      if (report.userId !== currentUser.id) {
+        console.log(`[REPORT SHARE] Access denied: User ${currentUser.id} does not own report ${reportId} (owned by ${report.userId})`);
+        return res.status(403).json({ message: 'Access denied: You can only share your own reports' });
+      }
+
       // Generate a secure 8-character passcode
       const passcode = crypto.randomBytes(4).toString('hex').toUpperCase();
       
