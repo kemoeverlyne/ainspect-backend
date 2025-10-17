@@ -1,7 +1,7 @@
 // Vercel serverless function entry point
-import express from 'express';
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
+const express = require('express');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
@@ -9,6 +9,8 @@ const app = express();
 app.use(cors({
   origin: [
     'https://ainspect-frontend-164593694555.us-central1.run.app',
+    'https://test-version-frontend.vercel.app',
+    'https://test-version-frontend-git-main-ainspect.vercel.app',
     'http://localhost:5173',
     'http://localhost:3000'
   ],
@@ -320,4 +322,4 @@ app.use('/api/*', (req, res) => {
 });
 
 // Export for Vercel
-export default app;
+module.exports = app;
