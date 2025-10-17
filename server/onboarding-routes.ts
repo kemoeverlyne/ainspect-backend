@@ -112,6 +112,15 @@ export function setupOnboardingRoutes(app: Express) {
           teamSetupCompleted: progress[0]?.teamSetupCompleted || false,
         }
       });
+      
+      console.log('[ONBOARDING STATUS] Response:', {
+        userId,
+        completed,
+        currentStep,
+        hasCompanyProfile,
+        hasOperationsSetup,
+        progressRecord: progress[0]
+      });
     } catch (error) {
       console.error('Onboarding status error:', error);
       res.status(500).json({ message: 'Failed to check onboarding status' });
