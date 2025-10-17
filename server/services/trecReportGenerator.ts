@@ -137,7 +137,7 @@ export class TRECReportGenerator {
 </body>
 </html>`;
     
-    await page.setContent(coverHTML, { waitUntil: 'domcontentloaded' });
+    await page.setContent(coverHTML, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.emulateMedia({ media: 'print' });
     
     const coverPdf = await page.pdf({
@@ -165,7 +165,7 @@ export class TRECReportGenerator {
       try {
         formBytes = await fs.readFile(trecFormPath);
         console.log('[TREC PDF] Loaded extracted TREC form from:', trecFormPath);
-      } catch (error) {
+      } catch (error: any) {
         console.log('[TREC PDF] Form not found at:', trecFormPath);
         console.log('[TREC PDF] Attempting alternate location...');
         
@@ -234,7 +234,7 @@ export class TRECReportGenerator {
       console.log('[TREC PDF] Form filled successfully');
       return Buffer.from(await pdfDoc.save());
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('[TREC PDF] Error filling TREC form:', error);
       throw error;
     }
@@ -1152,7 +1152,7 @@ export class TRECReportGenerator {
       });
       await browser.close();
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.log('[TRECReportGenerator] Playwright not available:', error.message);
       
       // Check if Puppeteer is available as alternative
@@ -1165,7 +1165,7 @@ export class TRECReportGenerator {
         await browser.close();
         console.log('[TRECReportGenerator] Puppeteer is available as fallback');
         return true; // We can use Puppeteer fallback
-      } catch (puppeteerError) {
+      } catch (puppeteerError: any) {
         console.log('[TRECReportGenerator] Neither Playwright nor Puppeteer available:', puppeteerError.message);
         return false;
       }
@@ -1218,7 +1218,7 @@ export class TRECReportGenerator {
       console.log('[TRECReportGenerator] Fallback PDF generated successfully using Puppeteer, size:', finalPdf.length, 'bytes');
       return Buffer.from(finalPdf);
       
-    } catch (puppeteerError) {
+    } catch (puppeteerError: any) {
       console.log('[TRECReportGenerator] Puppeteer also failed, using basic pdf-lib fallback:', puppeteerError.message);
       
       // Ultimate fallback using pdf-lib
@@ -1231,6 +1231,19 @@ export class TRECReportGenerator {
    */
   private static async generateCoverPageWithPuppeteer(browser: any, reportData: TRECReportData): Promise<Buffer> {
     const page = await browser.newPage();
+    
+    // Block external image requests to prevent timeouts (same as Playwright version)
+    await page.setRequestInterception(true);
+    page.on('request', (request: any) => {
+      const url = request.url();
+      // Allow data URLs and localhost, block external URLs
+      if (url.startsWith('data:') || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
+        request.continue();
+      } else {
+        // Abort external resource loading
+        request.abort();
+      }
+    });
     
     const { header } = reportData;
     const inspectionDate = new Date(header.inspectionDate).toLocaleDateString('en-US', {
@@ -1332,7 +1345,7 @@ export class TRECReportGenerator {
 </body>
 </html>`;
     
-    await page.setContent(coverHTML, { waitUntil: 'domcontentloaded' });
+    await page.setContent(coverHTML, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.emulateMedia({ media: 'print' });
     
     const coverPdf = await page.pdf({
@@ -1359,10 +1372,23 @@ export class TRECReportGenerator {
   private static async generateFilledReportWithPuppeteer(browser: any, reportData: TRECReportData): Promise<Buffer> {
     const page = await browser.newPage();
     
+    // Block external image requests to prevent timeouts (same as Playwright version)
+    await page.setRequestInterception(true);
+    page.on('request', (request: any) => {
+      const url = request.url();
+      // Allow data URLs and localhost, block external URLs
+      if (url.startsWith('data:') || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
+        request.continue();
+      } else {
+        // Abort external resource loading
+        request.abort();
+      }
+    });
+    
     // Use the same HTML generation as the Playwright version
     const htmlContent = this.generateCompleteReportHTML(reportData);
     
-    await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+    await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.emulateMedia({ media: 'print' });
     
     const pdf = await page.pdf({
