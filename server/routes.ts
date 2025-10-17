@@ -2731,15 +2731,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       ];
 
-      console.log('[BFF] Returning', sortedInspections.length, 'real inspections');
+      // Add mock data for testing if no real data exists
+      let finalInspections = sortedInspections;
+      if (sortedInspections.length === 0) {
+        console.log('[BFF] No real data found, adding mock data for testing');
+        // Update mock data to use current user ID
+        const mockDataWithCurrentUser = mockInspections.map((inspection, index) => ({
+          ...inspection,
+          inspectorId: userId,
+          userId: userId,
+          // Add type field for proper categorization
+          type: inspection.status === 'Completed' ? 'report' : 'booking',
+          // Add revenue data for completed inspections
+          revenue: inspection.status === 'Completed' ? 350 + (index * 50) : 0,
+          price: inspection.status === 'Completed' ? 350 + (index * 50) : 0,
+          inspectionFee: inspection.status === 'Completed' ? 350 + (index * 50) : 0,
+          // Add report data for completed inspections
+          reportData: inspection.status === 'Completed' ? {
+            summary: {
+              totalPrice: 350 + (index * 50),
+              rating: 4.5 + (index * 0.1),
+              safetyIssues: index + 1,
+              flaggedIssue: index + 1
+            },
+            pricing: {
+              inspectionFee: 350 + (index * 50)
+            },
+            findings: Array.from({ length: index + 2 }, (_, i) => ({ id: `finding_${i}`, issue: `Issue ${i + 1}` })),
+            rooms: Array.from({ length: 3 }, (_, i) => ({ 
+              name: `Room ${i + 1}`, 
+              issues: i === 0 ? ['Minor issue'] : [] 
+            }))
+          } : null
+        }));
+        finalInspections = mockDataWithCurrentUser;
+      }
+
+      console.log('[BFF] Returning', finalInspections.length, 'inspections (real + mock)');
 
       res.set("Cache-Control", "no-store");
       res.json({ 
         ok: true, 
-        count: sortedInspections.length, 
-        items: sortedInspections, 
-        reports: sortedInspections, 
-        inspections: sortedInspections 
+        count: finalInspections.length, 
+        items: finalInspections, 
+        reports: finalInspections, 
+        inspections: finalInspections 
       });
     } catch (error) {
       console.error('[BFF] Error:', error);
