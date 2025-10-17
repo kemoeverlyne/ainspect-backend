@@ -8,6 +8,7 @@ import { setupSettingsRoutes } from "./settings-routes";
 import { setupOnboardingRoutes } from "./onboarding-routes";
 import { registerSchedulingRoutes } from "./scheduling-routes";
 import { setupSimpleBooking } from "./simple-booking";
+import { PDFGenerator } from "./services/pdfGenerator";
 import { isAuthenticated } from "./replitAuth"; // For session-based authentication
 import { generateTRECReportPDF, getTRECReportData } from './routes/trecReportRoutes.js';
 import { 
@@ -290,9 +291,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: inspection.status || 'completed'
       };
       
-      // Import PDF generator from bundled exports
-      const { PDFGenerator } = await import('../dist/index.js');
-      
       // Generate PDF with options
       const pdfBuffer = await PDFGenerator.generateStandardReportPDF(standardData, {
         format: format as 'A4' | 'Letter' | 'Legal',
@@ -336,9 +334,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('[PDF API] Generating PDF from HTML content');
       
-      // Import PDF generator from bundled exports
-      const { PDFGenerator } = await import('../dist/index.js');
-      
       // Generate PDF
       const pdfBuffer = await PDFGenerator.generatePDFFromHTML(htmlContent, options);
       
@@ -369,9 +364,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log('[PDF API] Generating PDF from URL:', url);
-      
-      // Import PDF generator from bundled exports
-      const { PDFGenerator } = await import('../dist/index.js');
       
       // Generate PDF
       const pdfBuffer = await PDFGenerator.generatePDFFromURL(url, options);
