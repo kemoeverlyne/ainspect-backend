@@ -608,6 +608,47 @@ export function setupOnboardingRoutes(app: Express) {
   });
 
   // ============================================================================
+  // TEAM SETUP COMPLETION
+  // ============================================================================
+  
+  // Mark team setup as completed
+  app.post('/api/onboarding/team-complete', authenticateToken, async (req: any, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Import db directly to avoid circular dependency
+      const { db } = await import('./db');
+      
+      // Update onboarding progress to mark team setup as completed
+      await db
+        .insert(userOnboardingProgress)
+        .values({
+          userId,
+          teamSetupCompleted: true,
+          teamSetupCompletedAt: new Date(),
+          currentStep: 'operations',
+        })
+        .onConflictDoUpdate({
+          target: userOnboardingProgress.userId,
+          set: {
+            teamSetupCompleted: true,
+            teamSetupCompletedAt: new Date(),
+            currentStep: sql`CASE WHEN ${userOnboardingProgress.operationsSetupCompleted} THEN 'completed' ELSE 'operations' END`,
+            updatedAt: new Date(),
+          }
+        });
+      
+      res.json({ 
+        message: 'Team setup completed successfully',
+        currentStep: 'operations'
+      });
+    } catch (error) {
+      console.error('Team setup completion error:', error);
+      res.status(500).json({ message: 'Failed to complete team setup' });
+    }
+  });
+
+  // ============================================================================
   // BRANCH OFFICE MANAGEMENT
   // ============================================================================
   
