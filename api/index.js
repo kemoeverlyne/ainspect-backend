@@ -22,6 +22,15 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Handle CORS preflight requests
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -97,6 +106,11 @@ app.post('/api/auth/login', (req, res) => {
 
 // Signup endpoint
 app.post('/api/auth/signup', (req, res) => {
+  console.log('=== SIGNUP REQUEST RECEIVED ===');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('Origin:', req.headers.origin);
+  
   const { email, password, name } = req.body;
   
   console.log('Signup attempt:', { email, name, hasPassword: !!password });
