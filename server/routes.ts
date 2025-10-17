@@ -2572,6 +2572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const bookings = await withDb(async (db) => {
           return await db.select()
             .from(inspectorBookings)
+            .where(eq(inspectorBookings.inspectorId, userId))
             .orderBy(desc(inspectorBookings.createdAt))
             .limit(100);
         });
@@ -2603,11 +2604,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dbBookings = [];
       }
 
-      // Fetch ALL reports from database
+      // Fetch reports for the authenticated inspector only
       let dbReports: any[] = [];
       try {
-        dbReports = await storage.getAllInspectionReports();
-        console.log(`[DASHBOARD] Found ${dbReports.length} reports in database`);
+        dbReports = await storage.getInspectionReportsByInspector(userId);
+        console.log(`[DASHBOARD] Found ${dbReports.length} reports for user ${userId}`);
         
         // Transform reports to match inspection format
         const transformedReports = dbReports.map(report => ({
@@ -2639,10 +2640,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dbReports = [];
       }
 
-      // Include ALL in-memory inspections (no user filtering)
-      const memoryInspections = newInspections;
+      // Include in-memory inspections created by this user only
+      const memoryInspections = newInspections.filter(i => i.inspectorId === userId);
       
-      // Combine ALL data: bookings, reports, and memory inspections
+      // Combine user-specific data: bookings, reports, and memory inspections
       const allInspections = [...dbBookings, ...dbReports, ...memoryInspections];
       const uniqueInspections = allInspections.filter((inspection, index, self) => 
         index === self.findIndex(i => i.id === inspection.id)
@@ -2664,7 +2665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`      Type: ${inspection.inspectionType || 'unknown'}`);
       });
       
-      console.log(`[DASHBOARD] Returning ${sortedInspections.length} total items (${dbBookings.length} bookings, ${dbReports.length} reports, ${memoryInspections.length} memory)`);
+      console.log(`[DASHBOARD] Returning ${sortedInspections.length} total items for user ${userId} (${dbBookings.length} bookings, ${dbReports.length} reports, ${memoryInspections.length} memory)`);
 
       // Mock inspection data for testing (fallback)
       const mockInspections = [
