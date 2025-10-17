@@ -2541,7 +2541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // NEW BFF endpoint for dashboard (non-breaking) - NOW WITH REAL DATA
-  app.get('/api/dashboard/inspections', async (req: any, res) => {
+  app.get('/api/dashboard/inspections', authenticateToken, async (req: any, res) => {
     console.log('[BFF] Dashboard endpoint hit, fetching real data...'); 
     
     try {
