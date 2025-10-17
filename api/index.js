@@ -174,6 +174,18 @@ app.put('/api/onboarding/company', (req, res) => {
   });
 });
 
+// Logo upload endpoint
+app.post('/api/onboarding/logo', (req, res) => {
+  console.log('Logo upload request received');
+  // For demo purposes, return a mock logo URL
+  res.json({
+    success: true,
+    message: 'Logo uploaded successfully',
+    logoUrl: 'https://via.placeholder.com/200x200/4F46E5/FFFFFF?text=Logo',
+    logoId: 'demo-logo-' + Date.now()
+  });
+});
+
 // Additional endpoints that might be needed
 app.get('/api/dashboard/inspections', (req, res) => {
   res.json({
