@@ -222,6 +222,7 @@ const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     '/onboarding/operations',
     '/onboarding/invite',
     '/onboarding/complete',
+    '/onboarding/team-complete',
     '/onboarding/branches',
     // Scheduling endpoints for testing
     '/inspectors/super_admin_001/bookings',
