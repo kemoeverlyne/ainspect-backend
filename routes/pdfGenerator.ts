@@ -129,7 +129,7 @@ router.post('/generate-pdf-playwright', async (req, res) => {
     // Check if Playwright is available
     let playwright;
     try {
-      playwright = require('playwright');
+      playwright = await import('playwright');
     } catch (err) {
       console.log('[PDF Generator] Playwright not available, falling back to Puppeteer');
       return res.status(503).json({
