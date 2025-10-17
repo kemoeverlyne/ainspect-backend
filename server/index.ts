@@ -220,6 +220,7 @@ const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     '/onboarding/company',
     '/onboarding/logo',
     '/onboarding/operations',
+    '/onboarding/operations-skip',
     '/onboarding/invite',
     '/onboarding/complete',
     '/onboarding/team-complete',

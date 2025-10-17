@@ -608,6 +608,47 @@ export function setupOnboardingRoutes(app: Express) {
   });
 
   // ============================================================================
+  // OPERATIONS SETUP SKIP
+  // ============================================================================
+  
+  // Mark operations setup as completed (skip)
+  app.post('/api/onboarding/operations-skip', authenticateToken, async (req: any, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Import db directly to avoid circular dependency
+      const { db } = await import('./db');
+      
+      // Update onboarding progress to mark operations setup as completed
+      await db
+        .insert(userOnboardingProgress)
+        .values({
+          userId,
+          operationsSetupCompleted: true,
+          operationsSetupCompletedAt: new Date(),
+          currentStep: 'team',
+        })
+        .onConflictDoUpdate({
+          target: userOnboardingProgress.userId,
+          set: {
+            operationsSetupCompleted: true,
+            operationsSetupCompletedAt: new Date(),
+            currentStep: sql`CASE WHEN ${userOnboardingProgress.teamSetupCompleted} THEN 'completed' ELSE 'team' END`,
+            updatedAt: new Date(),
+          }
+        });
+      
+      res.json({ 
+        message: 'Operations setup skipped successfully',
+        currentStep: 'team'
+      });
+    } catch (error) {
+      console.error('Operations skip error:', error);
+      res.status(500).json({ message: 'Failed to skip operations setup' });
+    }
+  });
+
+  // ============================================================================
   // TEAM SETUP COMPLETION
   // ============================================================================
   
