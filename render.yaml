@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: ainspect-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/health
+
+  - type: pserv
+    name: ainspect-database
+    env: postgresql
+    plan: free
+    databaseName: ainspect
+    databaseUser: ainspect_user
