@@ -78,7 +78,8 @@ export function registerSchedulingRoutes(app: Express) {
       if (!user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
-      if (user.id !== inspectorId && user.role !== 'admin') {
+      if (user.id !== inspectorId && user.role !== 'super_admin' && user.role !== 'manager') {
+        console.log(`[SCHEDULING] Access denied: User ${user.id} (role: ${user.role}) cannot access inspector ${inspectorId} availability`);
         return res.status(403).json({ error: 'Access denied' });
       }
       
