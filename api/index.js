@@ -1,7 +1,7 @@
 // Vercel serverless function entry point
-const express = require('express');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
 const app = express();
 
@@ -336,4 +336,4 @@ app.use('/api/*', (req, res) => {
 });
 
 // Export for Vercel
-module.exports = app;
+export default app;
