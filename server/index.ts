@@ -247,6 +247,9 @@ const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     '/reports/save',
     // Admin endpoints for Playwright installation (bypasses CSRF for development)
     '/admin/install-playwright',
+    // Settings endpoints (bypasses CSRF for user settings updates)
+    '/settings/user',
+    '/settings/company',
     '/admin/check-playwright'
   ];
   
